@@ -31,6 +31,7 @@ data class RingRequest(
     val notes: String,
     val category: String,
     val soundUri: String?,
+    val soundOn: Boolean,
     val vibrate: Boolean,
     val snoozeMinutes: Int,
     val dueAt: Long,
@@ -39,20 +40,21 @@ data class RingRequest(
 ) {
     fun toJson() = JSONObject().apply {
         put("id", id); put("title", title); put("notes", notes); put("category", category)
-        put("soundUri", soundUri ?: JSONObject.NULL); put("vibrate", vibrate); put("snoozeMinutes", snoozeMinutes)
+        put("soundUri", soundUri ?: JSONObject.NULL); put("soundOn", soundOn); put("vibrate", vibrate); put("snoozeMinutes", snoozeMinutes)
         put("dueAt", dueAt); put("missed", missed); put("attempt", attempt)
     }
 
     companion object {
         fun fromJson(o: JSONObject) = RingRequest(
             o.optInt("id", -1), o.optString("title"), o.optString("notes"), o.optString("category", "custom"),
-            o.optStringOrNull("soundUri"), o.optBoolean("vibrate", true), o.optInt("snoozeMinutes", 10),
+            o.optStringOrNull("soundUri"), o.optBoolean("soundOn", true), o.optBoolean("vibrate", true), o.optInt("snoozeMinutes", 10),
             o.optLong("dueAt"), o.optBoolean("missed"), o.optInt("attempt"),
         )
 
         fun from(r: Reminder, settings: JSONObject, dueAt: Long, missed: Boolean, attempt: Int) = RingRequest(
             id = r.id, title = r.title.ifBlank { "Reminder" }, notes = r.notes, category = r.category,
             soundUri = r.soundUri ?: settings.optStringOrNull("defaultSoundUri"),
+            soundOn = r.soundOn,
             vibrate = r.vibrate, snoozeMinutes = r.snoozeMinutes, dueAt = dueAt, missed = missed, attempt = attempt,
         )
 
@@ -60,7 +62,7 @@ data class RingRequest(
             val s = Store.settings(ctx)
             return RingRequest(
                 -1, "Test alert", "This is how your reminders will look and sound.", "custom",
-                s.optStringOrNull("defaultSoundUri"), s.optBoolean("vibrate", true), 1,
+                s.optStringOrNull("defaultSoundUri"), true, s.optBoolean("vibrate", true), 1,
                 System.currentTimeMillis(), false, 0,
             )
         }
@@ -207,8 +209,12 @@ class AlarmService : Service() {
         }
         wakeLock?.acquire((ringMinutes + 1) * 60_000L)
 
-        prepareAudioPolicy(settings)
-        startSound(req.soundUri, settings.optBoolean("gradualVolume", true))
+        // A silent reminder only shows the full-screen alert (and vibrates if enabled):
+        // no sound, and the phone's volume / Do Not Disturb are left untouched.
+        if (req.soundOn) {
+            prepareAudioPolicy(settings)
+            startSound(req.soundUri, settings.optBoolean("gradualVolume", true))
+        }
         if (req.vibrate) startVibration()
 
         // With "display over other apps" we can show the alert even while the phone is in use;
@@ -373,7 +379,7 @@ class AlarmService : Service() {
         else listOf("Due ${Fmt.time(this, req.dueAt)}", req.notes).filter { it.isNotBlank() }.joinToString(" · ")
         return Notification.Builder(this, Notifs.CH_ALARM)
             .setSmallIcon(R.drawable.ic_stat_reminder)
-            .setContentTitle("${Categories.emoji(req.category)}  ${req.title}")
+            .setContentTitle("${Categories.emoji(req.category)}  ${req.title}${if (req.soundOn) "" else "  🔕"}")
             .setContentText(text)
             .setCategory(Notification.CATEGORY_ALARM)
             .setColor(Categories.color(req.category))

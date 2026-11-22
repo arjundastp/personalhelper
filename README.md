@@ -5,6 +5,7 @@ An offline Android reminder app (Flutter UI with a native Android alarm engine).
 ## Features
 - **Reminders that repeat:** once, every N days, chosen weekdays (every N weeks), every N months (for example a pollution certificate every 6 months), yearly, or every few hours within a time window (for example water every 2 h from 8 AM to 10 PM). Each reminder can have an end date.
 - **Quick-start templates:** Take medicine, Drink water, Pollution check (PUC), Vehicle insurance, Vehicle service, Pay a bill, Birthday, Doctor visit, Exercise, Water the plants.
+- **Sound on/off per reminder:** turn the sound off for a silent reminder that only shows the full-screen alert (and vibrates if vibration is on).
 - **Full-screen alert:** turns the screen on and shows over the lock screen, with large **Done** and **Snooze** buttons.
 - **Rings in silent mode:** sound plays on the *alarm* stream, so silent or vibrate mode does not mute it, and Android's Do Not Disturb lets alarms through by default. If you grant DND access, Remindly also gets through "Total silence" and then restores your setting. It can raise the alarm volume to a minimum level while ringing.
 - **No reminder is lost:**
@@ -35,6 +36,11 @@ flutter pub get
 flutter test                              # Dart unit tests
 (cd android && ./gradlew :app:testDebugUnitTest)  # recurrence engine tests
 flutter test test_screens --update-goldens        # renders UI screenshots to test_screens/goldens
-flutter build apk --release
+# Small APKs (about 15-18 MB each instead of one 52 MB file):
+flutter build apk --release --split-per-abi --target-platform android-arm,android-arm64 \
+  --obfuscate --split-debug-info=build/symbols
+#   app-arm64-v8a-release.apk   -> almost every phone from 2017 onwards
+#   app-armeabi-v7a-release.apk -> older / budget 32-bit phones
+# For the Play Store use: flutter build appbundle --release (Play then delivers only what each phone needs)
 ```
 The release build is signed with the debug key for now. Add your own keystore before publishing.

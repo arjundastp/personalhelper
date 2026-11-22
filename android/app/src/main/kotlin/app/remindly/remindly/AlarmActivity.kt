@@ -70,7 +70,7 @@ class AlarmActivity : Activity() {
         )
         window.statusBarColor = Color.TRANSPARENT
 
-        findViewById<TextView>(R.id.status).text = when {
+        findViewById<TextView>(R.id.status).text = (if (req.soundOn) "" else "🔕  ") + when {
             req.missed -> "Missed while phone was off · due ${Fmt.time(this, req.dueAt)}"
             req.attempt > 0 -> "Reminder again · due ${Fmt.time(this, req.dueAt)}"
             else -> "Reminder · ${Fmt.time(this, req.dueAt)}"

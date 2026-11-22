@@ -50,6 +50,7 @@ class Reminder {
   final RepeatRule repeat;
   final String? soundUri;
   final String? soundName;
+  final bool soundOn; // false = silent: full-screen alert without any sound
   final bool vibrate;
   final bool enabled;
   final int snoozeMinutes;
@@ -69,6 +70,7 @@ class Reminder {
     this.repeat = const RepeatRule(),
     this.soundUri,
     this.soundName,
+    this.soundOn = true,
     this.vibrate = true,
     this.enabled = true,
     this.snoozeMinutes = 10,
@@ -99,6 +101,7 @@ class Reminder {
     RepeatRule? repeat,
     String? soundUri,
     String? soundName,
+    bool? soundOn,
     bool? vibrate,
     bool? enabled,
     int? snoozeMinutes,
@@ -114,6 +117,7 @@ class Reminder {
         repeat: repeat ?? this.repeat,
         soundUri: soundUri ?? this.soundUri,
         soundName: soundName ?? this.soundName,
+        soundOn: soundOn ?? this.soundOn,
         vibrate: vibrate ?? this.vibrate,
         enabled: enabled ?? this.enabled,
         snoozeMinutes: snoozeMinutes ?? this.snoozeMinutes,
@@ -134,6 +138,7 @@ class Reminder {
         'repeat': repeat.toJson(),
         'soundUri': soundUri,
         'soundName': soundName,
+        'soundOn': soundOn,
         'vibrate': vibrate,
         'enabled': enabled,
         'snoozeMinutes': snoozeMinutes,
@@ -153,6 +158,7 @@ class Reminder {
       repeat: RepeatRule.fromJson(j['repeat'] as Map<String, dynamic>?),
       soundUri: j['soundUri'] as String?,
       soundName: j['soundName'] as String?,
+      soundOn: j['soundOn'] as bool? ?? true,
       vibrate: j['vibrate'] as bool? ?? true,
       enabled: j['enabled'] as bool? ?? true,
       snoozeMinutes: (j['snoozeMinutes'] as num?)?.toInt() ?? 10,

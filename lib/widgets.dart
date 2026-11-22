@@ -72,6 +72,10 @@ class ReminderRow extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(width: 8),
+                      if (!r.soundOn) ...[
+                        Icon(Icons.volume_off_rounded, size: 16, color: grey),
+                        const SizedBox(width: 4),
+                      ],
                       Text(
                         on ? fmtTime(context, next) : '',
                         style: TextStyle(

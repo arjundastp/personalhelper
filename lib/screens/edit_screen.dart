@@ -536,7 +536,15 @@ class _EditScreenState extends State<EditScreen> {
             ),
 
           const GroupGap(title: 'Alert'),
-          OptionRow(icon: Icons.music_note_rounded, title: 'Sound', value: draft.soundName ?? 'Default', onTap: _pickSound),
+          OptionRow(
+            icon: draft.soundOn ? Icons.volume_up_rounded : Icons.volume_off_rounded,
+            title: 'Sound',
+            value: draft.soundOn ? 'On' : 'Off – only the screen alert',
+            trailing: Switch(value: draft.soundOn, onChanged: (v) => _update(draft.copyWith(soundOn: v))),
+            onTap: () => _update(draft.copyWith(soundOn: !draft.soundOn)),
+          ),
+          if (draft.soundOn)
+            OptionRow(icon: Icons.music_note_rounded, title: 'Tune', value: draft.soundName ?? 'Default', onTap: _pickSound),
           OptionRow(
             icon: Icons.vibration_rounded,
             title: 'Vibrate',

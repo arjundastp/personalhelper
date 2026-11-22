@@ -64,6 +64,7 @@ data class Reminder(
     val repeat: RepeatRule = RepeatRule(),
     val soundUri: String? = null,
     val soundName: String? = null,
+    val soundOn: Boolean = true,
     val vibrate: Boolean = true,
     val enabled: Boolean = true,
     val snoozeMinutes: Int = 10,
@@ -84,6 +85,7 @@ data class Reminder(
         put("repeat", repeat.toJson())
         put("soundUri", soundUri ?: JSONObject.NULL)
         put("soundName", soundName ?: JSONObject.NULL)
+        put("soundOn", soundOn)
         put("vibrate", vibrate)
         put("enabled", enabled)
         put("snoozeMinutes", snoozeMinutes)
@@ -106,6 +108,7 @@ data class Reminder(
             repeat = RepeatRule.fromJson(o.optJSONObject("repeat")),
             soundUri = o.optStringOrNull("soundUri"),
             soundName = o.optStringOrNull("soundName"),
+            soundOn = o.optBoolean("soundOn", true),
             vibrate = o.optBoolean("vibrate", true),
             enabled = o.optBoolean("enabled", true),
             snoozeMinutes = o.optInt("snoozeMinutes", 10).coerceIn(1, 240),

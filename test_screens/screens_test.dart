@@ -32,7 +32,7 @@ List<Map<String, dynamic>> sampleReminders = [
   {'id': 1, 'title': 'Take blood pressure tablet', 'notes': '1 tablet after breakfast', 'category': 'medicine', 'startDate': isoDate(now), 'hour': 9, 'minute': 0, 'repeat': {'type': 'daily', 'interval': 1}, 'enabled': true, 'nextTrigger': at(const Duration(minutes: 42)), 'snoozeMinutes': 10, 'soundName': 'Soft Bells'},
   {'id': 2, 'title': 'Drink a glass of water', 'category': 'water', 'startDate': isoDate(now), 'hour': 8, 'minute': 0, 'repeat': {'type': 'hourly', 'interval': 120, 'windowEnd': 1320}, 'enabled': true, 'nextTrigger': at(const Duration(hours: 1, minutes: 50))},
   {'id': 3, 'title': 'Renew vehicle pollution certificate', 'category': 'vehicle', 'startDate': isoDate(now.add(const Duration(days: 12))), 'hour': 10, 'minute': 0, 'repeat': {'type': 'monthly', 'interval': 6}, 'enabled': true, 'nextTrigger': at(const Duration(days: 12))},
-  {'id': 4, 'title': 'Morning walk', 'category': 'exercise', 'startDate': isoDate(now), 'hour': 6, 'minute': 30, 'repeat': {'type': 'weekly', 'interval': 1, 'weekdays': [1, 2, 3, 4, 5]}, 'enabled': true, 'nextTrigger': at(const Duration(days: 1, hours: 3))},
+  {'id': 4, 'title': 'Morning walk', 'category': 'exercise', 'startDate': isoDate(now), 'hour': 6, 'minute': 30, 'repeat': {'type': 'weekly', 'interval': 1, 'weekdays': [1, 2, 3, 4, 5]}, 'soundOn': false, 'enabled': true, 'nextTrigger': at(const Duration(days: 1, hours: 3))},
   {'id': 5, 'title': "Amma's birthday", 'category': 'birthday', 'startDate': isoDate(now.add(const Duration(days: 4))), 'hour': 8, 'minute': 0, 'repeat': {'type': 'yearly', 'interval': 1}, 'enabled': true, 'nextTrigger': at(const Duration(days: 4))},
   {'id': 6, 'title': 'Pay electricity bill', 'category': 'bills', 'startDate': isoDate(now), 'hour': 11, 'minute': 0, 'repeat': {'type': 'monthly', 'interval': 1}, 'enabled': false},
   {'id': 7, 'title': 'Dentist appointment', 'category': 'doctor', 'startDate': isoDate(now.subtract(const Duration(days: 2))), 'hour': 16, 'minute': 0, 'repeat': {'type': 'once'}, 'enabled': false, 'lastFired': at(const Duration(days: -2))},
@@ -110,6 +110,7 @@ void main() {
   testWidgets('new blank', (t) => shot(t, '9_new_blank', const EditScreen()));
   testWidgets('repeat sheet', (t) async {
     await shot(t, '10_repeat_sheet', EditScreen(reminder: Reminder.fromJson(sampleReminders[3])));
+    await expectLater(find.byType(MaterialApp), matchesGoldenFile('goldens/5_edit_weekly.png'));
     await t.tap(find.text('Repeat'));
     await t.pumpAndSettle();
     await expectLater(find.byType(MaterialApp), matchesGoldenFile('goldens/10_repeat_sheet.png'));

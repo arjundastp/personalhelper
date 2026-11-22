@@ -240,7 +240,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
               _switch(Icons.format_size_rounded, 'Bigger text', 'Easier to read', 'largeText', false),
               const SizedBox(height: 24),
-              Center(child: Text('Remindly 1.1', style: TextStyle(fontSize: 13, color: grey))),
+              Center(child: Text('Remindly 1.2', style: TextStyle(fontSize: 13, color: grey))),
             ],
           ),
         );
