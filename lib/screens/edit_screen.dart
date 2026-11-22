@@ -4,10 +4,12 @@ import 'package:intl/intl.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../format.dart';
+import '../main.dart' show AppColors;
 import '../models.dart';
 import '../native.dart';
 import '../state.dart';
 import '../widgets.dart';
+import 'home_screen.dart' show confirmDelete;
 import 'sound_picker_screen.dart';
 
 const bundledSoundNames = {
@@ -22,6 +24,15 @@ const bundledSoundNames = {
   'digital_alarm': 'Digital Alarm',
   'heartbeat_pulse': 'Heartbeat Pulse',
 };
+
+const _repeatChoices = [
+  ('once', 'Does not repeat'),
+  ('daily', 'Every day'),
+  ('weekly', 'On some days of the week'),
+  ('monthly', 'Every month'),
+  ('yearly', 'Every year'),
+  ('hourly', 'Many times a day'),
+];
 
 class EditScreen extends StatefulWidget {
   final Reminder? reminder;
@@ -41,16 +52,14 @@ class _EditScreenState extends State<EditScreen> {
   List<DateTime> preview = [];
   Timer? _previewDebounce;
   bool saving = false;
-  String? error;
 
   bool get isNew => widget.reminder == null;
 
   @override
   void initState() {
     super.initState();
-    final now = DateTime.now();
-    final nextHour = now.add(const Duration(hours: 1));
-    draft = widget.reminder ??
+    final nextHour = DateTime.now().add(const Duration(hours: 1));
+    var r = widget.reminder ??
         Reminder(
           startDate: dateOnly(nextHour),
           hour: nextHour.hour,
@@ -60,6 +69,9 @@ class _EditScreenState extends State<EditScreen> {
           vibrate: state.setting('vibrate', true),
           snoozeMinutes: (state.settings['snoozeMinutes'] as num?)?.toInt() ?? 10,
         );
+    // Opening a finished one-time reminder usually means "use it again".
+    if (!isNew && !r.enabled && r.repeat.type == 'once' && r.lastFired != null) r = r.copyWith(enabled: true);
+    draft = r;
     titleCtrl = TextEditingController(text: draft.title);
     notesCtrl = TextEditingController(text: draft.notes);
     if (widget.template != null) _applyTemplate(widget.template!);
@@ -77,8 +89,8 @@ class _EditScreenState extends State<EditScreen> {
   void _applyTemplate(Template t) {
     final now = DateTime.now();
     var date = dateOnly(now);
-    // One-time templates default to tomorrow; repeating ones start today (or tomorrow if the time passed).
-    // ("Every few hours" stays on today: the next slot later today is used.)
+    // One-time templates default to tomorrow; others start today unless that time has passed.
+    // ("Many times a day" stays on today: the next slot later today is used.)
     if (t.repeat.type == 'once' ||
         (t.repeat.type != 'hourly' && DateTime(now.year, now.month, now.day, t.hour, t.minute).isBefore(now))) {
       date = date.add(const Duration(days: 1));
@@ -100,14 +112,9 @@ class _EditScreenState extends State<EditScreen> {
   }
 
   void _update(Reminder r) {
-    setState(() {
-      draft = r;
-      error = null;
-    });
+    setState(() => draft = r);
     _refreshPreview();
   }
-
-  void _setRepeat(RepeatRule rule) => _update(draft.copyWith(repeat: rule));
 
   void _refreshPreview() {
     _previewDebounce?.cancel();
@@ -119,54 +126,33 @@ class _EditScreenState extends State<EditScreen> {
     });
   }
 
-  Future<void> _pickDate({bool forEnd = false}) async {
+  // ---------------- pickers ----------------
+
+  Future<void> _pickDate() async {
     final now = DateTime.now();
-    final initial = forEnd ? (draft.repeat.endDate ?? draft.startDate.add(const Duration(days: 30))) : draft.startDate;
     final first = DateTime(now.year - 5);
     final picked = await showDatePicker(
       context: context,
-      initialDate: initial.isBefore(first) ? now : initial,
+      initialDate: draft.startDate.isBefore(first) ? now : draft.startDate,
       firstDate: first,
       lastDate: DateTime(now.year + 30),
-      helpText: forEnd ? 'Stop repeating after' : 'Choose the date',
+      helpText: 'Choose the date',
     );
-    if (picked == null) return;
-    if (forEnd) {
-      _setRepeat(draft.repeat.copyWith(endDate: () => picked));
-    } else {
-      _update(draft.copyWith(startDate: picked));
-    }
+    if (picked != null) _update(draft.copyWith(startDate: picked));
   }
 
-  Future<void> _pickTime({bool forWindowEnd = false}) async {
-    final m = forWindowEnd ? (draft.repeat.windowEnd ?? 22 * 60) : draft.hour * 60 + draft.minute;
+  Future<void> _pickTime({bool untilTime = false}) async {
+    final m = untilTime ? (draft.repeat.windowEnd ?? 22 * 60) : draft.hour * 60 + draft.minute;
     final picked = await showTimePicker(
       context: context,
       initialTime: TimeOfDay(hour: m ~/ 60, minute: m % 60),
-      helpText: forWindowEnd ? 'Stop for the day at' : 'Remind me at',
+      helpText: untilTime ? 'Last reminder of the day' : 'Remind me at',
     );
     if (picked == null) return;
-    if (forWindowEnd) {
-      _setRepeat(draft.repeat.copyWith(windowEnd: () => picked.hour * 60 + picked.minute));
+    if (untilTime) {
+      _update(draft.copyWith(repeat: draft.repeat.copyWith(windowEnd: () => picked.hour * 60 + picked.minute)));
     } else {
       _update(draft.copyWith(hour: picked.hour, minute: picked.minute));
-    }
-  }
-
-  void _changeType(String type) {
-    final r = draft.repeat;
-    switch (type) {
-      case 'weekly':
-        _setRepeat(r.copyWith(type: type, interval: 1, weekdays: r.weekdays.isEmpty ? [draft.startDate.weekday] : r.weekdays));
-      case 'hourly':
-        final start = draft.hour * 60 + draft.minute;
-        _setRepeat(r.copyWith(
-          type: type,
-          interval: 120,
-          windowEnd: () => start < 22 * 60 ? 22 * 60 : 23 * 60 + 59,
-        ));
-      default:
-        _setRepeat(r.copyWith(type: type, interval: 1));
     }
   }
 
@@ -177,19 +163,211 @@ class _EditScreenState extends State<EditScreen> {
     if (picked != null) _update(draft.copyWith(soundUri: picked.uri, soundName: picked.title));
   }
 
+  Future<void> _pickSnooze() async {
+    final v = await chooseOne<int>(
+      context,
+      title: 'If I tap "Remind me later", ring again after',
+      options: const [(5, '5 minutes'), (10, '10 minutes'), (15, '15 minutes'), (30, '30 minutes'), (60, '1 hour')],
+      current: draft.snoozeMinutes,
+    );
+    if (v != null) _update(draft.copyWith(snoozeMinutes: v));
+  }
+
+  Future<void> _pickIcon() async {
+    final key = await showModalBottomSheet<String>(
+      context: context,
+      builder: (c) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+            const Padding(
+              padding: EdgeInsets.fromLTRB(8, 0, 8, 16),
+              child: Text('Choose a picture', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600)),
+            ),
+            GridView.count(
+              crossAxisCount: 4,
+              shrinkWrap: true,
+              mainAxisSpacing: 8,
+              childAspectRatio: 0.9,
+              children: [
+                for (final cat in categories)
+                  InkWell(
+                    borderRadius: BorderRadius.circular(16),
+                    onTap: () => Navigator.pop(c, cat.key),
+                    child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                      Container(
+                        width: 58,
+                        height: 58,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: cat.key == draft.category ? cat.color : cat.color.withValues(alpha: 0.15),
+                        ),
+                        child: Icon(cat.icon, size: 30, color: cat.key == draft.category ? Colors.white : cat.color),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(cat.label, style: const TextStyle(fontSize: 14)),
+                    ]),
+                  ),
+              ],
+            ),
+          ]),
+        ),
+      ),
+    );
+    if (key != null) _update(draft.copyWith(category: key));
+  }
+
+  /// The one place where repeating is set up, in plain words.
+  Future<void> _pickRepeat() async {
+    var rule = draft.repeat;
+    final result = await showModalBottomSheet<RepeatRule>(
+      context: context,
+      isScrollControlled: true,
+      builder: (c) => StatefulBuilder(builder: (c, setSheet) {
+        void set(RepeatRule r) => setSheet(() => rule = r);
+        Widget chips(List<(int, String)> opts) => Container(
+              alignment: Alignment.centerLeft,
+              padding: const EdgeInsets.fromLTRB(70, 0, 20, 8),
+              child: Wrap(spacing: 8, runSpacing: 8, children: [
+                for (final (n, label) in opts)
+                  ChoiceChip(
+                    label: Text(label),
+                    selected: rule.interval == n,
+                    onSelected: (_) => set(rule.copyWith(interval: n)),
+                  ),
+              ]),
+            );
+        return ConstrainedBox(
+          constraints: BoxConstraints(maxHeight: MediaQuery.of(c).size.height * 0.85),
+          child: SafeArea(
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              const Padding(
+                padding: EdgeInsets.fromLTRB(24, 0, 24, 8),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text('Repeat', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600)),
+                ),
+              ),
+              Flexible(
+                child: SingleChildScrollView(
+                  child: Column(mainAxisSize: MainAxisSize.min, children: [
+                    for (final (type, label) in _repeatChoices) ...[
+                      RadioRow(label: label, selected: rule.type == type, onTap: () => set(_switchType(rule, type))),
+                      if (rule.type == type) ...switch (type) {
+                        'daily' => [chips(const [(1, 'Every day'), (2, 'Every 2 days'), (3, 'Every 3 days')])],
+                        'weekly' => [
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(70, 4, 24, 8),
+                              child: DayPicker(
+                                selected: rule.weekdays.toSet(),
+                                onToggle: (d) {
+                                  final s = rule.weekdays.toSet();
+                                  if (!s.remove(d)) s.add(d);
+                                  if (s.isNotEmpty) set(rule.copyWith(weekdays: s.toList()..sort()));
+                                },
+                              ),
+                            ),
+                            Container(
+                              alignment: Alignment.centerLeft,
+                              padding: const EdgeInsets.fromLTRB(70, 0, 20, 8),
+                              child: Wrap(spacing: 8, children: [
+                                ActionChip(label: const Text('Mon – Fri'), onPressed: () => set(rule.copyWith(weekdays: [1, 2, 3, 4, 5]))),
+                                ActionChip(label: const Text('Sat & Sun'), onPressed: () => set(rule.copyWith(weekdays: [6, 7]))),
+                              ]),
+                            ),
+                          ],
+                        'monthly' => [
+                            chips(const [(1, 'Every month'), (2, 'Every 2 months'), (3, 'Every 3 months'), (6, 'Every 6 months'), (12, 'Every 12 months')]),
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(70, 0, 20, 8),
+                              child: Text('On the ${ordinal(draft.startDate.day)} of the month',
+                                  style: TextStyle(fontSize: 15, color: Theme.of(c).colorScheme.onSurfaceVariant)),
+                            ),
+                          ],
+                        'hourly' => [
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(70, 0, 20, 6),
+                              child: Text('Remind me every',
+                                  style: TextStyle(fontSize: 15, color: Theme.of(c).colorScheme.onSurfaceVariant)),
+                            ),
+                            chips(const [(30, '30 min'), (60, '1 hour'), (120, '2 hours'), (180, '3 hours'), (240, '4 hours')]),
+                          ],
+                        _ => const <Widget>[],
+                      },
+                    ],
+                    if (rule.type != 'once') ...[
+                      const Divider(),
+                      OptionRow(
+                        icon: Icons.event_busy_rounded,
+                        title: 'Stop repeating',
+                        value: rule.endDate == null ? 'Never' : 'After ${DateFormat('d MMM y').format(rule.endDate!)}',
+                        trailing: rule.endDate == null
+                            ? null
+                            : IconButton(
+                                tooltip: 'Never stop',
+                                onPressed: () => set(rule.copyWith(endDate: () => null)),
+                                icon: const Icon(Icons.close_rounded),
+                              ),
+                        onTap: () async {
+                          final now = DateTime.now();
+                          final d = await showDatePicker(
+                            context: c,
+                            initialDate: rule.endDate ?? draft.startDate.add(const Duration(days: 30)),
+                            firstDate: DateTime(now.year - 5),
+                            lastDate: DateTime(now.year + 30),
+                            helpText: 'Stop repeating after',
+                          );
+                          if (d != null) set(rule.copyWith(endDate: () => d));
+                        },
+                      ),
+                    ],
+                  ]),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(onPressed: () => Navigator.pop(c, rule), child: const Text('Done')),
+                ),
+              ),
+            ]),
+          ),
+        );
+      }),
+    );
+    if (result != null) _update(draft.copyWith(repeat: result));
+  }
+
+  RepeatRule _switchType(RepeatRule r, String type) {
+    switch (type) {
+      case 'weekly':
+        return r.copyWith(type: type, interval: 1, weekdays: r.weekdays.isEmpty ? [draft.startDate.weekday] : r.weekdays);
+      case 'hourly':
+        final start = draft.hour * 60 + draft.minute;
+        return r.copyWith(type: type, interval: 120, windowEnd: () => start < 22 * 60 ? 22 * 60 : 23 * 60 + 59);
+      case 'once':
+        return r.copyWith(type: type, interval: 1, endDate: () => null);
+      default:
+        return r.copyWith(type: type, interval: 1);
+    }
+  }
+
+  // ---------------- save / delete ----------------
+
   Future<void> _save() async {
     final title = titleCtrl.text.trim();
     final r = draft.copyWith(
       title: title.isEmpty ? categoryOf(draft.category).label : title,
       notes: notesCtrl.text.trim(),
-      enabled: true,
+      enabled: isNew ? true : draft.enabled,
     );
-    if (r.repeat.type == 'once' && !r.startDateTime.isAfter(DateTime.now())) {
-      setState(() => error = 'That time has already passed. Please pick a time in the future.');
+    if (r.enabled && r.repeat.type == 'once' && !r.startDateTime.isAfter(DateTime.now())) {
+      _problem('This time has already passed. Please choose a later time.');
       return;
     }
     if (r.repeat.endDate != null && dateOnly(r.repeat.endDate!).isBefore(dateOnly(r.startDate))) {
-      setState(() => error = 'The end date is before the start date.');
+      _problem('"Stop repeating" date is before the start date.');
       return;
     }
     setState(() => saving = true);
@@ -200,487 +378,203 @@ class _EditScreenState extends State<EditScreen> {
       navigator.pop();
       final next = saved.nextAlert;
       messenger.clearSnackBars();
-      if (next != null && mounted) {
-        messenger.showSnackBar(SnackBar(content: Text('Saved. Next alert ${fmtRelative(next)}.')));
-      }
+      messenger.showSnackBar(SnackBar(
+        content: Text(next != null ? 'Saved ✓  It will ring ${fmtRelative(next)}.' : 'Saved ✓',
+            style: const TextStyle(fontSize: 16)),
+      ));
     } catch (e) {
-      setState(() {
-        saving = false;
-        error = 'Could not save: $e';
-      });
+      setState(() => saving = false);
+      _problem('Could not save. Please try again.');
     }
   }
 
+  void _problem(String text) => showDialog<void>(
+        context: context,
+        builder: (c) => AlertDialog(
+          content: Text(text, style: const TextStyle(fontSize: 17)),
+          actions: [TextButton(onPressed: () => Navigator.pop(c), child: const Text('OK'))],
+        ),
+      );
+
   Future<void> _delete() async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (c) => AlertDialog(
-        title: const Text('Delete this reminder?'),
-        content: Text('"${draft.title}" will be removed and will not ring again.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: const Color(0xFFE5484D), minimumSize: const Size(64, 44)),
-            onPressed: () => Navigator.pop(c, true),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
-    );
-    if (ok == true) {
+    if (await confirmDelete(context, draft)) {
       await state.delete(draft.id);
       if (mounted) Navigator.of(context).pop();
     }
   }
 
+  // ---------------- UI ----------------
+
+  String _dateLabel(DateTime d) {
+    final rel = fmtDay(d);
+    final full = DateFormat('d MMM y').format(d);
+    return rel == 'Today' || rel == 'Tomorrow' ? '$rel, $full' : DateFormat('EEEE, d MMM y').format(d);
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final grey = theme.colorScheme.onSurfaceVariant;
     final rule = draft.repeat;
     final hourly = rule.type == 'hourly';
+    final cat = categoryOf(draft.category);
+
     return Scaffold(
-      appBar: AppBar(
-        title: Text(isNew ? 'New reminder' : 'Edit reminder', style: const TextStyle(fontWeight: FontWeight.w700)),
-        actions: [
-          if (!isNew)
-            IconButton(tooltip: 'Delete', onPressed: _delete, icon: const Icon(Icons.delete_outline_rounded)),
-        ],
-      ),
+      appBar: AppBar(title: Text(isNew ? 'New reminder' : 'Change reminder')),
       bottomNavigationBar: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (error != null)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: Text(error!, style: TextStyle(color: theme.colorScheme.error, fontSize: 15)),
-                ),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton.icon(
-                  onPressed: saving ? null : _save,
-                  icon: const Icon(Icons.check_rounded),
-                  label: Text(isNew ? 'Save reminder' : 'Save changes'),
-                ),
-              ),
-            ],
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
+          child: FilledButton(
+            onPressed: saving ? null : _save,
+            child: const Text('Save'),
           ),
         ),
       ),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+        padding: const EdgeInsets.only(bottom: 24),
         children: [
-          if (isNew) ...[
-            _label(context, 'Quick start'),
-            SizedBox(
-              height: 48,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                itemCount: templates.length,
-                separatorBuilder: (_, _) => const SizedBox(width: 8),
-                itemBuilder: (_, i) => TemplateChip(
-                  template: templates[i],
-                  selected: selectedTemplate == templates[i],
-                  onTap: () {
-                    setState(() => _applyTemplate(templates[i]));
-                    _refreshPreview();
-                  },
-                ),
-              ),
-            ),
-          ],
-          _label(context, 'What to remind'),
-          TextField(
-            controller: titleCtrl,
-            textCapitalization: TextCapitalization.sentences,
-            style: theme.textTheme.titleLarge,
-            decoration: const InputDecoration(hintText: 'e.g. Take blood pressure tablet'),
-            onChanged: (v) => draft = draft.copyWith(title: v),
-          ),
-          const SizedBox(height: 14),
-          SizedBox(
-            height: 92,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              itemCount: categories.length,
-              separatorBuilder: (_, _) => const SizedBox(width: 6),
-              itemBuilder: (_, i) {
-                final c = categories[i];
-                final sel = c.key == draft.category;
-                return InkWell(
-                  borderRadius: BorderRadius.circular(16),
-                  onTap: () => _update(draft.copyWith(category: c.key)),
-                  child: SizedBox(
-                    width: 72,
-                    child: Column(
-                      children: [
-                        AnimatedContainer(
-                          duration: const Duration(milliseconds: 180),
-                          width: 56,
-                          height: 56,
-                          decoration: BoxDecoration(
-                            color: sel ? c.color : c.color.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(18),
-                          ),
-                          child: Icon(c.icon, color: sel ? Colors.white : c.color, size: 28),
+          // Picture + name
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 24, 20, 8),
+            child: Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
+              Semantics(
+                button: true,
+                label: 'Change picture',
+                child: GestureDetector(
+                  onTap: _pickIcon,
+                  child: Stack(clipBehavior: Clip.none, children: [
+                    Container(
+                      width: 68,
+                      height: 68,
+                      decoration: BoxDecoration(color: cat.color.withValues(alpha: 0.15), shape: BoxShape.circle),
+                      child: Icon(cat.icon, color: cat.color, size: 36),
+                    ),
+                    Positioned(
+                      right: -2,
+                      bottom: -2,
+                      child: Container(
+                        width: 26,
+                        height: 26,
+                        decoration: BoxDecoration(
+                          color: AppColors.accent,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: theme.colorScheme.surface, width: 2),
                         ),
-                        const SizedBox(height: 6),
-                        Text(c.label,
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: sel ? FontWeight.w700 : FontWeight.w500,
-                              color: sel ? c.color : theme.colorScheme.onSurfaceVariant,
-                            )),
-                      ],
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-
-          // ---------------- when ----------------
-          Section(title: 'WHEN', children: [
-            Row(
-              children: [
-                Expanded(
-                  child: _WhenBox(
-                    icon: Icons.calendar_month_rounded,
-                    label: rule.type == 'once' ? 'Date' : 'Starting',
-                    value: fmtDay(draft.startDate),
-                    onTap: _pickDate,
-                  ),
-                ),
-                Expanded(
-                  child: _WhenBox(
-                    icon: Icons.schedule_rounded,
-                    label: hourly ? 'From' : 'Time',
-                    value: fmtMinutesOfDay(context, draft.hour * 60 + draft.minute),
-                    onTap: _pickTime,
-                  ),
-                ),
-              ],
-            ),
-          ]),
-
-          // ---------------- repeat ----------------
-          Section(title: 'REPEAT', children: [
-            Padding(
-              padding: const EdgeInsets.all(14),
-              child: Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  for (final (type, label) in const [
-                    ('once', 'Once'),
-                    ('daily', 'Daily'),
-                    ('weekly', 'Weekly'),
-                    ('monthly', 'Monthly'),
-                    ('yearly', 'Yearly'),
-                    ('hourly', 'Every few hours'),
-                  ])
-                    ChoiceChip(
-                      label: Text(label, style: const TextStyle(fontSize: 15)),
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
-                      selected: rule.type == type,
-                      onSelected: (_) => _changeType(type),
-                    ),
-                ],
-              ),
-            ),
-            if (rule.type != 'once') ...[
-              const Divider(height: 1),
-              Padding(padding: const EdgeInsets.all(14), child: _repeatDetails(context)),
-              const Divider(height: 1),
-              BigTile(
-                icon: Icons.event_busy_rounded,
-                label: 'Stop repeating',
-                value: rule.endDate == null ? 'Never' : 'After ${DateFormat('d MMM y').format(rule.endDate!)}',
-                onTap: () => _pickDate(forEnd: true),
-                trailing: rule.endDate == null
-                    ? null
-                    : IconButton(
-                        tooltip: 'Never stop',
-                        onPressed: () => _setRepeat(rule.copyWith(endDate: () => null)),
-                        icon: const Icon(Icons.close_rounded),
+                        child: const Icon(Icons.edit_rounded, color: Colors.white, size: 14),
                       ),
-              ),
-            ],
-          ]),
-          if (preview.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(8, 12, 8, 0),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Icon(Icons.notifications_active_outlined, size: 20, color: theme.colorScheme.primary),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Next: ${preview.map((d) => fmtWhen(context, d)).join('  •  ')}',
-                      style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
                     ),
-                  ),
-                ],
-              ),
-            ),
-
-          // ---------------- alert ----------------
-          Section(title: 'ALERT', children: [
-            BigTile(
-              icon: Icons.music_note_rounded,
-              label: 'Sound',
-              value: draft.soundName ?? 'Default',
-              onTap: _pickSound,
-            ),
-            const Divider(height: 1, indent: 58),
-            BigTile(
-              icon: Icons.vibration_rounded,
-              label: 'Vibrate',
-              trailing: Switch(value: draft.vibrate, onChanged: (v) => _update(draft.copyWith(vibrate: v))),
-              onTap: () => _update(draft.copyWith(vibrate: !draft.vibrate)),
-            ),
-            const Divider(height: 1, indent: 58),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(children: [
-                    Icon(Icons.snooze_rounded, color: theme.colorScheme.primary, size: 26),
-                    const SizedBox(width: 16),
-                    Text('Snooze for', style: theme.textTheme.titleMedium),
                   ]),
-                  const SizedBox(height: 10),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      for (final m in const [5, 10, 15, 30, 60])
-                        ChoiceChip(
-                          label: Text(m == 60 ? '1 hour' : '$m min'),
-                          selected: draft.snoozeMinutes == m,
-                          onSelected: (_) => _update(draft.copyWith(snoozeMinutes: m)),
-                        ),
-                    ],
-                  ),
-                ],
+                ),
               ),
-            ),
-          ]),
-
-          _label(context, 'Notes (optional)'),
-          TextField(
-            controller: notesCtrl,
-            minLines: 2,
-            maxLines: 5,
-            textCapitalization: TextCapitalization.sentences,
-            decoration: const InputDecoration(hintText: 'e.g. 1 tablet after food'),
+              const SizedBox(width: 18),
+              Expanded(
+                child: TextField(
+                  controller: titleCtrl,
+                  textCapitalization: TextCapitalization.sentences,
+                  style: const TextStyle(fontSize: 20),
+                  decoration: const InputDecoration(labelText: 'What should I remind you?', hintText: 'e.g. Take BP tablet'),
+                  onChanged: (v) => draft = draft.copyWith(title: v),
+                ),
+              ),
+            ]),
           ),
-        ],
-      ),
-    );
-  }
-
-  Widget _label(BuildContext context, String text) => Padding(
-        padding: const EdgeInsets.fromLTRB(6, 18, 6, 8),
-        child: Text(text.toUpperCase(),
-            style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  color: Theme.of(context).colorScheme.primary,
-                  letterSpacing: 0.3,
-                )),
-      );
-
-  Widget _repeatDetails(BuildContext context) {
-    final rule = draft.repeat;
-    final theme = Theme.of(context);
-    switch (rule.type) {
-      case 'daily':
-        return Stepper2(
-          value: rule.interval,
-          max: 365,
-          label: (n) => n == 1 ? 'Every day' : 'Every $n days',
-          onChanged: (n) => _setRepeat(rule.copyWith(interval: n)),
-        );
-      case 'weekly':
-        final days = rule.weekdays.toSet();
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('On these days', style: theme.textTheme.titleSmall),
-            const SizedBox(height: 10),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                for (var d = 1; d <= 7; d++)
-                  _DayCircle(
-                    letter: weekdayLetter[d - 1],
-                    tooltip: weekdayShort[d - 1],
-                    selected: days.contains(d),
-                    onTap: () {
-                      final next = {...days};
-                      if (!next.remove(d)) next.add(d);
-                      if (next.isEmpty) return; // keep at least one day
-                      _setRepeat(rule.copyWith(weekdays: next.toList()..sort()));
+          if (isNew) ...[
+            const ListHeader('Or pick one'),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+              child: Wrap(spacing: 8, runSpacing: 8, children: [
+                for (final t in templates)
+                  ChoiceChip(
+                    avatar: Icon(categoryOf(t.category).icon, color: categoryOf(t.category).color, size: 20),
+                    showCheckmark: false,
+                    label: Text(t.label),
+                    selected: selectedTemplate == t,
+                    onSelected: (_) {
+                      setState(() => _applyTemplate(t));
+                      _refreshPreview();
                     },
                   ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            Wrap(spacing: 8, children: [
-              ActionChip(label: const Text('Weekdays'), onPressed: () => _setRepeat(rule.copyWith(weekdays: [1, 2, 3, 4, 5]))),
-              ActionChip(label: const Text('Weekends'), onPressed: () => _setRepeat(rule.copyWith(weekdays: [6, 7]))),
-              ActionChip(label: const Text('Every day'), onPressed: () => _setRepeat(rule.copyWith(weekdays: [1, 2, 3, 4, 5, 6, 7]))),
-            ]),
-            const SizedBox(height: 10),
-            Stepper2(
-              value: rule.interval,
-              max: 52,
-              label: (n) => n == 1 ? 'Every week' : 'Every $n weeks',
-              onChanged: (n) => _setRepeat(rule.copyWith(interval: n)),
+              ]),
             ),
           ],
-        );
-      case 'monthly':
-        return Column(children: [
-          Stepper2(
-            value: rule.interval,
-            max: 60,
-            label: (n) => n == 1 ? 'Every month' : 'Every $n months',
-            onChanged: (n) => _setRepeat(rule.copyWith(interval: n)),
+
+          const GroupGap(title: 'When'),
+          OptionRow(
+            icon: Icons.calendar_today_rounded,
+            title: rule.type == 'once' ? 'Date' : 'Starting from',
+            value: _dateLabel(draft.startDate),
+            onTap: _pickDate,
           ),
-          const SizedBox(height: 6),
-          Text('On the ${ordinal(draft.startDate.day)} (change the start date to pick another day)',
-              textAlign: TextAlign.center, style: theme.textTheme.bodyMedium),
-        ]);
-      case 'yearly':
-        return Column(children: [
-          Stepper2(
-            value: rule.interval,
-            max: 20,
-            label: (n) => n == 1 ? 'Every year' : 'Every $n years',
-            onChanged: (n) => _setRepeat(rule.copyWith(interval: n)),
+          OptionRow(
+            icon: Icons.access_time_rounded,
+            title: hourly ? 'First reminder at' : 'Time',
+            value: fmtMinutesOfDay(context, draft.hour * 60 + draft.minute),
+            onTap: _pickTime,
           ),
-          const SizedBox(height: 6),
-          Text('On ${DateFormat('d MMMM').format(draft.startDate)}', style: theme.textTheme.bodyMedium),
-        ]);
-      case 'hourly':
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Remind me every', style: theme.textTheme.titleSmall),
-            const SizedBox(height: 10),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                for (final m in const [15, 30, 60, 90, 120, 180, 240, 360])
-                  ChoiceChip(
-                    label: Text(fmtInterval(m)),
-                    selected: rule.interval == m,
-                    onSelected: (_) => _setRepeat(rule.copyWith(interval: m)),
-                  ),
-              ],
+          if (hourly)
+            OptionRow(
+              icon: Icons.bedtime_outlined,
+              title: 'Last reminder at',
+              value: fmtMinutesOfDay(context, rule.windowEnd ?? 23 * 60 + 59),
+              onTap: () => _pickTime(untilTime: true),
             ),
+          OptionRow(
+            icon: Icons.repeat_rounded,
+            title: 'Repeat',
+            value: rule.type == 'once' ? 'Does not repeat' : repeatSummary(context, draft),
+            onTap: _pickRepeat,
+          ),
+          if (preview.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(70, 0, 20, 12),
+              child: Text(
+                rule.type == 'once'
+                    ? 'Will ring ${fmtRelative(preview.first)}'
+                    : 'Next: ${preview.map((d) => fmtWhen(context, d)).join(',  ')}',
+                style: TextStyle(fontSize: 14, color: grey),
+              ),
+            ),
+
+          const GroupGap(title: 'Alert'),
+          OptionRow(icon: Icons.music_note_rounded, title: 'Sound', value: draft.soundName ?? 'Default', onTap: _pickSound),
+          OptionRow(
+            icon: Icons.vibration_rounded,
+            title: 'Vibrate',
+            trailing: Switch(value: draft.vibrate, onChanged: (v) => _update(draft.copyWith(vibrate: v))),
+            onTap: () => _update(draft.copyWith(vibrate: !draft.vibrate)),
+          ),
+          OptionRow(
+            icon: Icons.snooze_rounded,
+            title: 'Remind me later',
+            value: 'After ${draft.snoozeMinutes == 60 ? '1 hour' : '${draft.snoozeMinutes} minutes'}',
+            onTap: _pickSnooze,
+          ),
+
+          const GroupGap(title: 'Note (optional)'),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+            child: TextField(
+              controller: notesCtrl,
+              minLines: 1,
+              maxLines: 4,
+              style: const TextStyle(fontSize: 17),
+              textCapitalization: TextCapitalization.sentences,
+              decoration: const InputDecoration(hintText: 'e.g. 1 tablet after food'),
+            ),
+          ),
+
+          if (!isNew) ...[
             const SizedBox(height: 12),
-            Row(children: [
-              Expanded(
-                child: _WhenBox(
-                  icon: Icons.wb_sunny_rounded,
-                  label: 'From',
-                  value: fmtMinutesOfDay(context, draft.hour * 60 + draft.minute),
-                  onTap: _pickTime,
-                ),
-              ),
-              Expanded(
-                child: _WhenBox(
-                  icon: Icons.bedtime_rounded,
-                  label: 'Until',
-                  value: fmtMinutesOfDay(context, rule.windowEnd ?? 23 * 60 + 59),
-                  onTap: () => _pickTime(forWindowEnd: true),
-                ),
-              ),
-            ]),
-          ],
-        );
-      default:
-        return const SizedBox();
-    }
-  }
-}
-
-class _WhenBox extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final String value;
-  final VoidCallback onTap;
-  const _WhenBox({required this.icon, required this.label, required this.value, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(children: [
-              Icon(icon, size: 20, color: theme.colorScheme.primary),
-              const SizedBox(width: 6),
-              Text(label, style: theme.textTheme.labelLarge?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
-            ]),
-            const SizedBox(height: 6),
-            FittedBox(
-              fit: BoxFit.scaleDown,
-              alignment: Alignment.centerLeft,
-              child: Text(value, style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700)),
+            const GroupGap(),
+            OptionRow(
+              icon: draft.enabled ? Icons.notifications_active_rounded : Icons.notifications_off_rounded,
+              title: draft.enabled ? 'Reminder is on' : 'Reminder is off',
+              trailing: Switch(value: draft.enabled, onChanged: (v) => _update(draft.copyWith(enabled: v))),
+              onTap: () => _update(draft.copyWith(enabled: !draft.enabled)),
             ),
+            OptionRow(icon: Icons.delete_rounded, title: 'Delete reminder', color: AppColors.red, onTap: _delete),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-class _DayCircle extends StatelessWidget {
-  final String letter;
-  final String tooltip;
-  final bool selected;
-  final VoidCallback onTap;
-  const _DayCircle({required this.letter, required this.tooltip, required this.selected, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    return Semantics(
-      label: tooltip,
-      selected: selected,
-      button: true,
-      child: InkWell(
-        customBorder: const CircleBorder(),
-        onTap: onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
-          width: 42,
-          height: 42,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: selected ? cs.primary : cs.surfaceContainerHighest,
-          ),
-          child: Text(letter,
-              style: TextStyle(
-                fontSize: 17,
-                fontWeight: FontWeight.w700,
-                color: selected ? cs.onPrimary : cs.onSurfaceVariant,
-              )),
-        ),
+        ],
       ),
     );
   }

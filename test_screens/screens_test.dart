@@ -79,8 +79,8 @@ Future<void> shot(WidgetTester tester, String name, Widget home, {ThemeMode mode
   tester.view.devicePixelRatio = 2.625;
   await tester.pumpWidget(MaterialApp(
     debugShowCheckedModeBanner: false,
-    theme: buildTheme(Brightness.light).copyWith(textTheme: buildTheme(Brightness.light).textTheme.apply(fontFamily: 'Roboto')),
-    darkTheme: buildTheme(Brightness.dark).copyWith(textTheme: buildTheme(Brightness.dark).textTheme.apply(fontFamily: 'Roboto')),
+    theme: buildTheme(Brightness.light, fontFamily: 'Roboto'),
+    darkTheme: buildTheme(Brightness.dark, fontFamily: 'Roboto'),
     themeMode: mode,
     home: home,
   ));
@@ -107,4 +107,17 @@ void main() {
   testWidgets('sounds', (t) => shot(t, '6_sounds', const SoundPickerScreen(selectedUri: 'remindly-tune://soft_bells')));
   testWidgets('settings', (t) => shot(t, '7_settings', const SettingsScreen()));
   testWidgets('history', (t) => shot(t, '8_history', const HistoryScreen()));
+  testWidgets('new blank', (t) => shot(t, '9_new_blank', const EditScreen()));
+  testWidgets('repeat sheet', (t) async {
+    await shot(t, '10_repeat_sheet', EditScreen(reminder: Reminder.fromJson(sampleReminders[3])));
+    await t.tap(find.text('Repeat'));
+    await t.pumpAndSettle();
+    await expectLater(find.byType(MaterialApp), matchesGoldenFile('goldens/10_repeat_sheet.png'));
+  });
+  testWidgets('long press', (t) async {
+    await shot(t, '11_long_press', const HomeScreen());
+    await t.longPress(find.text('Morning walk'));
+    await t.pumpAndSettle();
+    await expectLater(find.byType(MaterialApp), matchesGoldenFile('goldens/11_long_press.png'));
+  });
 }

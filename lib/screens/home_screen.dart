@@ -1,8 +1,8 @@
 import 'dart:async';
 
-import 'package:intl/intl.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../main.dart' show AppColors;
 import '../models.dart';
 import '../native.dart';
 import '../state.dart';
@@ -26,42 +26,111 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    // Keep "in 5 min" labels fresh.
     _tick = Timer.periodic(const Duration(seconds: 30), (_) => mounted ? setState(() {}) : null);
-    _historySub = state.openHistoryRequests.stream.listen((_) => _openHistory());
+    _historySub = state.openHistoryRequests.stream.listen((_) => _open(const HistoryScreen()));
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!state.setting('onboarded', false)) _welcome();
     });
   }
 
-  /// First launch: explain why permissions matter and ask for the essential ones.
+  @override
+  void dispose() {
+    _tick?.cancel();
+    _historySub?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _open(Widget screen) => Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen));
+
+  /// Long-press menu: simple, clearly worded choices.
+  Future<void> _actions(Reminder r) async {
+    final on = r.enabled;
+    final choice = await showModalBottomSheet<String>(
+      context: context,
+      builder: (c) => SafeArea(
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(24, 0, 24, 8),
+            child: Row(children: [
+              CategoryAvatar(category: r.category, size: 44),
+              const SizedBox(width: 14),
+              Expanded(child: Text(r.title, style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w600))),
+            ]),
+          ),
+          OptionRow(icon: Icons.edit_rounded, title: 'Change', onTap: () => Navigator.pop(c, 'edit')),
+          OptionRow(
+            icon: on ? Icons.notifications_off_rounded : Icons.notifications_active_rounded,
+            title: on ? 'Turn off' : 'Turn on',
+            onTap: () => Navigator.pop(c, 'toggle'),
+          ),
+          OptionRow(
+            icon: Icons.delete_rounded,
+            title: 'Delete',
+            color: AppColors.red,
+            onTap: () => Navigator.pop(c, 'delete'),
+          ),
+          const SizedBox(height: 8),
+        ]),
+      ),
+    );
+    if (!mounted) return;
+    switch (choice) {
+      case 'edit':
+        _open(EditScreen(reminder: r));
+      case 'toggle':
+        await state.setEnabled(r, !on);
+        _toast(on ? 'Turned off. It will not ring.' : 'Turned on.');
+      case 'delete':
+        if (await confirmDelete(context, r)) {
+          await state.delete(r.id);
+          _toast('Deleted', undo: () => state.save(r.copyWith(id: 0)));
+        }
+    }
+  }
+
+  void _toast(String text, {VoidCallback? undo}) {
+    if (!mounted) return;
+    final m = ScaffoldMessenger.of(context);
+    m.clearSnackBars();
+    m.showSnackBar(SnackBar(
+      content: Text(text, style: const TextStyle(fontSize: 16)),
+      action: undo == null ? null : SnackBarAction(label: 'UNDO', onPressed: undo),
+    ));
+  }
+
   Future<void> _welcome() async {
     await showModalBottomSheet<void>(
       context: context,
       isDismissible: false,
       enableDrag: false,
       isScrollControlled: true,
+      showDragHandle: false,
       builder: (c) {
-        final theme = Theme.of(c);
         Widget point(IconData i, String t) => Padding(
-              padding: const EdgeInsets.symmetric(vertical: 6),
+              padding: const EdgeInsets.symmetric(vertical: 8),
               child: Row(children: [
-                Icon(i, color: theme.colorScheme.primary, size: 28),
-                const SizedBox(width: 14),
-                Expanded(child: Text(t, style: theme.textTheme.bodyLarge)),
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.15), shape: BoxShape.circle),
+                  child: Icon(i, color: AppColors.accent, size: 24),
+                ),
+                const SizedBox(width: 16),
+                Expanded(child: Text(t, style: const TextStyle(fontSize: 16.5))),
               ]),
             );
         return SafeArea(
           child: Padding(
             padding: const EdgeInsets.fromLTRB(24, 28, 24, 16),
             child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('Welcome to Remindly', style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800)),
+              const Text('Welcome to Remindly', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700)),
               const SizedBox(height: 12),
-              point(Icons.fullscreen_rounded, 'Reminders ring with a big full-screen alert, even on the lock screen.'),
-              point(Icons.volume_up_rounded, 'They use the alarm volume, so they ring even when the phone is on silent.'),
-              point(Icons.phonelink_lock_rounded, 'Everything stays on this phone. No account, no internet.'),
-              const SizedBox(height: 8),
-              Text('Next, Android will ask to allow notifications. Please tap "Allow".', style: theme.textTheme.bodyMedium),
+              point(Icons.fullscreen_rounded, 'When it is time, your phone shows a big alert, even when it is locked.'),
+              point(Icons.volume_up_rounded, 'It rings even if your phone is on silent.'),
+              point(Icons.lock_outline_rounded, 'Everything stays on your phone. No internet needed.'),
+              const SizedBox(height: 12),
+              const Text('On the next screen, please tap "Allow".',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
               const SizedBox(height: 20),
               SizedBox(
                 width: double.infinity,
@@ -85,40 +154,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   @override
-  void dispose() {
-    _tick?.cancel();
-    _historySub?.cancel();
-    super.dispose();
-  }
-
-  void _openHistory() =>
-      Navigator.of(context).push(MaterialPageRoute(builder: (_) => const HistoryScreen()));
-
-  Future<void> _openEditor([Reminder? r, Template? t]) async {
-    await Navigator.of(context).push(MaterialPageRoute(builder: (_) => EditScreen(reminder: r, template: t)));
-  }
-
-  String get _greeting {
-    final h = DateTime.now().hour;
-    if (h < 5) return 'Good night';
-    if (h < 12) return 'Good morning';
-    if (h < 17) return 'Good afternoon';
-    return 'Good evening';
-  }
-
-  Future<void> _delete(Reminder r) async {
-    final messenger = ScaffoldMessenger.of(context);
-    await state.delete(r.id);
-    messenger.clearSnackBars();
-    messenger.showSnackBar(SnackBar(
-      content: Text('Deleted "${r.title}"'),
-      action: SnackBarAction(label: 'Undo', onPressed: () => state.save(r.copyWith(id: 0))),
-    ));
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return ListenableBuilder(
       listenable: state,
       builder: (context, _) {
@@ -126,179 +162,151 @@ class _HomeScreenState extends State<HomeScreen> {
         final inactive = state.inactive;
         final today = dateOnly(DateTime.now());
         final groups = <String, List<Reminder>>{};
-        for (final r in upcoming.skip(1)) {
+        for (final r in upcoming) {
           final d = dateOnly(r.nextAlert!).difference(today).inDays;
-          final key = d <= 0 ? 'Later today' : d == 1 ? 'Tomorrow' : d < 7 ? 'This week' : 'Later';
+          final key = d <= 0 ? 'Today' : (d == 1 ? 'Tomorrow' : 'Coming up');
           groups.putIfAbsent(key, () => []).add(r);
         }
 
         return Scaffold(
-          floatingActionButton: FloatingActionButton.extended(
-            onPressed: () => _openEditor(),
-            icon: const Icon(Icons.add_rounded, size: 28),
-            label: const Text('New reminder', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600)),
+          appBar: AppBar(
+            title: const Text('Remindly'),
+            actions: [
+              PopupMenuButton<String>(
+                tooltip: 'More',
+                icon: Badge(
+                  isLabelVisible: state.missingCritical.isNotEmpty || state.unseenMissed > 0,
+                  smallSize: 9,
+                  child: const Icon(Icons.more_vert_rounded),
+                ),
+                onSelected: (v) => _open(v == 'history' ? const HistoryScreen() : const SettingsScreen()),
+                itemBuilder: (_) => const [
+                  PopupMenuItem(value: 'history', child: Text('History', style: TextStyle(fontSize: 16))),
+                  PopupMenuItem(value: 'settings', child: Text('Settings', style: TextStyle(fontSize: 16))),
+                ],
+              ),
+            ],
           ),
-          body: SafeArea(
-            child: !state.loaded
-                ? const Center(child: CircularProgressIndicator())
-                : CustomScrollView(
-                    slivers: [
-                      SliverToBoxAdapter(
-                        child: Padding(
-                          padding: const EdgeInsets.fromLTRB(20, 16, 8, 8),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(DateFormat('EEEE, d MMMM').format(DateTime.now()),
-                                        style: theme.textTheme.titleSmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
-                                    const SizedBox(height: 2),
-                                    Text(_greeting,
-                                        style: theme.textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w800)),
-                                  ],
-                                ),
-                              ),
-                              IconButton(
-                                tooltip: 'History',
-                                iconSize: 28,
-                                onPressed: _openHistory,
-                                icon: Badge(
-                                  isLabelVisible: state.unseenMissed > 0,
-                                  label: Text('${state.unseenMissed}'),
-                                  child: const Icon(Icons.history_rounded),
-                                ),
-                              ),
-                              IconButton(
-                                tooltip: 'Settings',
-                                iconSize: 28,
-                                onPressed: () => Navigator.of(context)
-                                    .push(MaterialPageRoute(builder: (_) => const SettingsScreen())),
-                                icon: Badge(
-                                  isLabelVisible: state.missingCritical.isNotEmpty,
-                                  child: const Icon(Icons.settings_rounded),
-                                ),
-                              ),
-                            ],
-                          ),
+          floatingActionButton: FloatingActionButton.extended(
+            onPressed: () => _open(const EditScreen()),
+            icon: const Icon(Icons.add_alarm_rounded, size: 26),
+            label: const Text('Add reminder'),
+          ),
+          body: !state.loaded
+              ? const Center(child: CircularProgressIndicator())
+              : ListView(
+                  padding: const EdgeInsets.only(bottom: 110),
+                  children: [
+                    if (state.missingCritical.isNotEmpty)
+                      BannerRow(
+                        icon: Icons.warning_amber_rounded,
+                        color: AppColors.red,
+                        title: 'Reminders may not ring',
+                        subtitle: 'Tap here to fix it',
+                        onTap: () => _open(const SettingsScreen()),
+                      ),
+                    if (state.unseenMissed > 0)
+                      BannerRow(
+                        icon: Icons.notification_important_rounded,
+                        color: const Color(0xFFF76B15),
+                        title: 'You missed ${state.unseenMissed} reminder${state.unseenMissed == 1 ? '' : 's'}',
+                        subtitle: 'Tap to see them',
+                        onTap: () => _open(const HistoryScreen()),
+                      ),
+                    if (state.reminders.isEmpty) _EmptyState(onAdd: (t) => _open(EditScreen(template: t))),
+                    for (final e in groups.entries) ...[
+                      ListHeader(e.key),
+                      ..._rows(e.value),
+                    ],
+                    if (inactive.isNotEmpty) ...[
+                      const ListHeader('Turned off / finished'),
+                      ..._rows(inactive),
+                    ],
+                    if (state.reminders.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
+                        child: Text(
+                          'Tap a reminder to change it. Press and hold for more options.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(fontSize: 14, color: Theme.of(context).colorScheme.onSurfaceVariant),
                         ),
                       ),
-                      if (state.missingCritical.isNotEmpty)
-                        _pad(NoticeCard(
-                          icon: Icons.warning_amber_rounded,
-                          color: const Color(0xFFE5484D),
-                          title: 'Alerts may not show',
-                          message: 'Remindly needs a couple of permissions to ring on time and show full screen.',
-                          action: 'Fix now',
-                          onTap: () => Navigator.of(context)
-                              .push(MaterialPageRoute(builder: (_) => const SettingsScreen(focusReliability: true))),
-                        )),
-                      if (state.unseenMissed > 0)
-                        _pad(NoticeCard(
-                          icon: Icons.notification_important_rounded,
-                          color: const Color(0xFFF76B15),
-                          title: 'You missed ${state.unseenMissed} reminder${state.unseenMissed == 1 ? '' : 's'}',
-                          message: 'Tap to see what they were.',
-                          action: 'View',
-                          onTap: _openHistory,
-                        )),
-                      if (state.reminders.isEmpty)
-                        SliverToBoxAdapter(child: _EmptyState(onTemplate: (t) => _openEditor(null, t)))
-                      else ...[
-                        if (upcoming.isNotEmpty) ...[
-                          _header(context, 'Next up'),
-                          _pad(NextUpCard(reminder: upcoming.first, onTap: () => _openEditor(upcoming.first))),
-                        ],
-                        for (final e in groups.entries) ...[
-                          _header(context, e.key),
-                          _list(e.value),
-                        ],
-                        if (inactive.isNotEmpty) ...[
-                          _header(context, 'Paused & completed'),
-                          _list(inactive),
-                        ],
-                      ],
-                      const SliverToBoxAdapter(child: SizedBox(height: 110)),
-                    ],
-                  ),
-          ),
+                  ],
+                ),
         );
       },
     );
   }
 
-  Widget _pad(Widget child) =>
-      SliverToBoxAdapter(child: Padding(padding: const EdgeInsets.fromLTRB(16, 8, 16, 8), child: child));
+  List<Widget> _rows(List<Reminder> items) => [
+        for (var i = 0; i < items.length; i++) ...[
+          ReminderRow(
+            reminder: items[i],
+            onTap: () => _open(EditScreen(reminder: items[i])),
+            onLongPress: () => _actions(items[i]),
+          ),
+          if (i < items.length - 1) const Divider(indent: 86),
+        ],
+      ];
+}
 
-  Widget _header(BuildContext context, String text) => SliverToBoxAdapter(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(22, 18, 16, 6),
-          child: Text(text,
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  )),
+Future<bool> confirmDelete(BuildContext context, Reminder r) async {
+  final ok = await showDialog<bool>(
+    context: context,
+    builder: (c) => AlertDialog(
+      title: const Text('Delete this reminder?'),
+      content: Text('"${r.title}" will not ring again.', style: const TextStyle(fontSize: 16)),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
+        TextButton(
+          style: TextButton.styleFrom(foregroundColor: AppColors.red),
+          onPressed: () => Navigator.pop(c, true),
+          child: const Text('Delete'),
         ),
-      );
-
-  Widget _list(List<Reminder> items) => SliverPadding(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        sliver: SliverList.separated(
-          itemCount: items.length,
-          separatorBuilder: (_, _) => const SizedBox(height: 10),
-          itemBuilder: (context, i) {
-            final r = items[i];
-            return Dismissible(
-              key: ValueKey('r${r.id}'),
-              direction: DismissDirection.endToStart,
-              background: Container(
-                alignment: Alignment.centerRight,
-                padding: const EdgeInsets.only(right: 24),
-                decoration: BoxDecoration(color: const Color(0xFFE5484D), borderRadius: BorderRadius.circular(20)),
-                child: const Icon(Icons.delete_rounded, color: Colors.white, size: 28),
-              ),
-              onDismissed: (_) => _delete(r),
-              child: ReminderTile(
-                reminder: r,
-                onTap: () => _openEditor(r),
-                onToggle: (v) => state.setEnabled(r, v),
-              ),
-            );
-          },
-        ),
-      );
+      ],
+    ),
+  );
+  return ok == true;
 }
 
 class _EmptyState extends StatelessWidget {
-  final ValueChanged<Template> onTemplate;
-  const _EmptyState({required this.onTemplate});
+  final ValueChanged<Template?> onAdd;
+  const _EmptyState({required this.onAdd});
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final grey = Theme.of(context).colorScheme.onSurfaceVariant;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 32, 20, 0),
+      padding: const EdgeInsets.fromLTRB(24, 40, 24, 0),
       child: Column(
         children: [
           Container(
             width: 120,
             height: 120,
-            decoration: BoxDecoration(color: theme.colorScheme.primaryContainer, shape: BoxShape.circle),
-            child: Icon(Icons.alarm_add_rounded, size: 60, color: theme.colorScheme.onPrimaryContainer),
+            decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.12), shape: BoxShape.circle),
+            child: const Icon(Icons.alarm_add_rounded, size: 60, color: AppColors.accent),
           ),
           const SizedBox(height: 20),
-          Text('No reminders yet', style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
+          const Text('No reminders yet', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700)),
           const SizedBox(height: 6),
-          Text('Pick one to start, or tap "New reminder".',
-              textAlign: TextAlign.center, style: theme.textTheme.bodyLarge),
+          Text('Tap one below to start quickly', textAlign: TextAlign.center, style: TextStyle(fontSize: 16, color: grey)),
           const SizedBox(height: 20),
-          Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            alignment: WrapAlignment.center,
-            children: [for (final t in templates.take(8)) TemplateChip(template: t, onTap: () => onTemplate(t))],
-          ),
+          for (final t in templates.take(5))
+            Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    alignment: Alignment.centerLeft,
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                  ),
+                  onPressed: () => onAdd(t),
+                  icon: Icon(categoryOf(t.category).icon, color: categoryOf(t.category).color),
+                  label: Text(t.label),
+                ),
+              ),
+            ),
         ],
       ),
     );

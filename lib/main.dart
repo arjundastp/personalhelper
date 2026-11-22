@@ -5,7 +5,16 @@ import 'package:material_ui/material_ui.dart';
 import 'screens/home_screen.dart';
 import 'state.dart';
 
-const seed = Color(0xFF0D74CE);
+/// Colours modelled on the messaging apps most people already use every day:
+/// a green top bar, white list, and green round buttons.
+class AppColors {
+  static const green = Color(0xFF008069); // top bar (light)
+  static const accent = Color(0xFF00A884); // buttons, switches, highlights
+  static const darkBg = Color(0xFF111B21);
+  static const darkBar = Color(0xFF202C33);
+  static const grey = Color(0xFF667781);
+  static const red = Color(0xFFEA0038);
+}
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -13,37 +22,113 @@ void main() async {
   runApp(const RemindlyApp());
 }
 
-ThemeData buildTheme(Brightness b) {
-  final scheme = ColorScheme.fromSeed(seedColor: seed, brightness: b);
+ThemeData buildTheme(Brightness b, {String? fontFamily}) {
+  final light = b == Brightness.light;
+  final base = ColorScheme.fromSeed(seedColor: AppColors.green, brightness: b);
+  final scheme = base.copyWith(
+    primary: light ? AppColors.green : AppColors.accent,
+    onPrimary: Colors.white,
+    secondary: AppColors.accent,
+    surface: light ? Colors.white : AppColors.darkBg,
+    onSurfaceVariant: light ? AppColors.grey : const Color(0xFF8696A0),
+    outlineVariant: light ? const Color(0xFFE9EDEF) : const Color(0xFF222D34),
+    error: AppColors.red,
+  );
   return ThemeData(
+    fontFamily: fontFamily,
     colorScheme: scheme,
     useMaterial3: true,
-    scaffoldBackgroundColor: b == Brightness.light ? const Color(0xFFF6F8FB) : scheme.surface,
-    cardTheme: CardThemeData(
-      elevation: 0,
-      color: b == Brightness.light ? Colors.white : scheme.surfaceContainerHigh,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      margin: EdgeInsets.zero,
-    ),
+    scaffoldBackgroundColor: scheme.surface,
     appBarTheme: AppBarTheme(
-      backgroundColor: Colors.transparent,
+      backgroundColor: light ? AppColors.green : AppColors.darkBar,
+      foregroundColor: Colors.white,
       surfaceTintColor: Colors.transparent,
-      systemOverlayStyle: b == Brightness.light ? SystemUiOverlayStyle.dark : SystemUiOverlayStyle.light,
-    ),
-    inputDecorationTheme: InputDecorationTheme(
-      filled: true,
-      fillColor: b == Brightness.light ? Colors.white : scheme.surfaceContainerHigh,
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
-    ),
-    filledButtonTheme: FilledButtonThemeData(
-      style: FilledButton.styleFrom(
-        minimumSize: const Size(64, 56),
-        textStyle: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+      elevation: 0,
+      scrolledUnderElevation: 0,
+      titleTextStyle: TextStyle(fontFamily: fontFamily, color: Colors.white, fontSize: 21, fontWeight: FontWeight.w600),
+      iconTheme: const IconThemeData(color: Colors.white, size: 26),
+      actionsIconTheme: const IconThemeData(color: Colors.white, size: 26),
+      systemOverlayStyle: SystemUiOverlayStyle.light.copyWith(
+        statusBarColor: light ? AppColors.green : AppColors.darkBar,
       ),
     ),
-    chipTheme: ChipThemeData(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
+    dividerTheme: DividerThemeData(color: scheme.outlineVariant, thickness: 1, space: 1),
+    floatingActionButtonTheme: FloatingActionButtonThemeData(
+      backgroundColor: AppColors.accent,
+      foregroundColor: Colors.white,
+      elevation: 3,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(18))),
+      extendedTextStyle: TextStyle(fontFamily: fontFamily, fontSize: 17, fontWeight: FontWeight.w600),
+    ),
+    switchTheme: SwitchThemeData(
+      thumbColor: WidgetStateProperty.resolveWith((s) => s.contains(WidgetState.selected) ? Colors.white : null),
+      trackColor: WidgetStateProperty.resolveWith((s) => s.contains(WidgetState.selected) ? AppColors.accent : null),
+      trackOutlineColor: WidgetStateProperty.resolveWith((s) => s.contains(WidgetState.selected) ? AppColors.accent : null),
+    ),
+    radioTheme: RadioThemeData(
+      fillColor: WidgetStateProperty.resolveWith((s) => s.contains(WidgetState.selected) ? AppColors.accent : scheme.onSurfaceVariant),
+    ),
+    listTileTheme: ListTileThemeData(
+      titleTextStyle: TextStyle(fontFamily: fontFamily, fontSize: 17, color: scheme.onSurface),
+      subtitleTextStyle: TextStyle(fontFamily: fontFamily, fontSize: 15, color: scheme.onSurfaceVariant),
+      iconColor: scheme.onSurfaceVariant,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+      minVerticalPadding: 12,
+    ),
+    inputDecorationTheme: InputDecorationTheme(
+      border: UnderlineInputBorder(borderSide: BorderSide(color: scheme.outlineVariant, width: 2)),
+      enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: AppColors.accent.withValues(alpha: 0.5), width: 2)),
+      focusedBorder: const UnderlineInputBorder(borderSide: BorderSide(color: AppColors.accent, width: 2)),
+      floatingLabelStyle: TextStyle(fontFamily: fontFamily, color: AppColors.accent),
+      hintStyle: TextStyle(fontFamily: fontFamily, color: scheme.onSurfaceVariant),
+    ),
+    textSelectionTheme: const TextSelectionThemeData(cursorColor: AppColors.accent, selectionHandleColor: AppColors.accent),
+    filledButtonTheme: FilledButtonThemeData(
+      style: FilledButton.styleFrom(
+        backgroundColor: AppColors.accent,
+        foregroundColor: light ? Colors.white : AppColors.darkBg,
+        minimumSize: const Size(64, 52),
+        textStyle: TextStyle(fontFamily: fontFamily, fontSize: 17, fontWeight: FontWeight.w600),
+        shape: const StadiumBorder(),
+      ),
+    ),
+    outlinedButtonTheme: OutlinedButtonThemeData(
+      style: OutlinedButton.styleFrom(
+        foregroundColor: light ? AppColors.green : AppColors.accent,
+        minimumSize: const Size(64, 52),
+        side: BorderSide(color: scheme.outlineVariant, width: 1.5),
+        textStyle: TextStyle(fontFamily: fontFamily, fontSize: 17, fontWeight: FontWeight.w600),
+        shape: const StadiumBorder(),
+      ),
+    ),
+    textButtonTheme: TextButtonThemeData(
+      style: TextButton.styleFrom(
+        foregroundColor: light ? AppColors.green : AppColors.accent,
+        textStyle: TextStyle(fontFamily: fontFamily, fontSize: 16, fontWeight: FontWeight.w600),
+      ),
+    ),
+    chipTheme: ChipThemeData(
+      shape: const StadiumBorder(),
+      side: BorderSide(color: scheme.outlineVariant),
+      labelStyle: TextStyle(fontFamily: fontFamily, fontSize: 15, color: scheme.onSurface),
+      selectedColor: AppColors.accent.withValues(alpha: light ? 0.15 : 0.3),
+      checkmarkColor: light ? AppColors.green : AppColors.accent,
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+    ),
+    tabBarTheme: TabBarThemeData(
+      labelColor: Colors.white,
+      unselectedLabelColor: const Color(0xCCFFFFFF),
+      indicatorColor: Colors.white,
+      indicatorSize: TabBarIndicatorSize.tab,
+      dividerColor: Colors.transparent,
+      labelStyle: TextStyle(fontFamily: fontFamily, fontSize: 15, fontWeight: FontWeight.w600),
+    ),
+    bottomSheetTheme: BottomSheetThemeData(
+      backgroundColor: light ? Colors.white : AppColors.darkBar,
+      showDragHandle: true,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+    ),
+    dialogTheme: DialogThemeData(backgroundColor: light ? Colors.white : AppColors.darkBar),
     snackBarTheme: const SnackBarThemeData(behavior: SnackBarBehavior.floating),
   );
 }

@@ -1,10 +1,12 @@
 import 'package:material_ui/material_ui.dart';
 
 import '../format.dart';
+import '../main.dart' show AppColors;
 import '../native.dart';
 import '../state.dart';
 import '../widgets.dart';
 
+/// What happened to each alert, laid out like a phone's call log.
 class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key});
 
@@ -14,24 +16,18 @@ class HistoryScreen extends StatefulWidget {
 
 class _HistoryScreenState extends State<HistoryScreen> {
   final state = AppState.instance;
-  late final Set<int> _unseenAtOpen;
 
   @override
   void initState() {
     super.initState();
-    // Remember which ones were new so they stay highlighted while the screen is open.
-    _unseenAtOpen = {
-      for (var i = 0; i < state.history.length; i++)
-        if (!state.history[i].seen) i,
-    };
     Native.markHistorySeen().then((_) => state.refresh());
   }
 
   static const _status = {
-    'done': ('Done', Icons.check_circle_rounded, Color(0xFF30A46C)),
-    'snoozed': ('Snoozed', Icons.snooze_rounded, Color(0xFF0D74CE)),
-    'auto_snoozed': ('No answer – will ring again', Icons.replay_rounded, Color(0xFFF76B15)),
-    'missed': ('Missed', Icons.error_rounded, Color(0xFFE5484D)),
+    'done': ('Done', Icons.check_circle_rounded, AppColors.accent),
+    'snoozed': ('Reminded later', Icons.snooze_rounded, Color(0xFF0D74CE)),
+    'auto_snoozed': ('No answer, rang again', Icons.replay_rounded, Color(0xFFF76B15)),
+    'missed': ('Missed', Icons.cancel_rounded, AppColors.red),
   };
 
   Future<void> _clear() async {
@@ -39,10 +35,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
       context: context,
       builder: (c) => AlertDialog(
         title: const Text('Clear history?'),
-        content: const Text('This only clears the list below. Your reminders are not changed.'),
+        content: const Text('Your reminders will not change.', style: TextStyle(fontSize: 16)),
         actions: [
           TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('Clear')),
+          TextButton(onPressed: () => Navigator.pop(c, true), child: const Text('Clear')),
         ],
       ),
     );
@@ -54,64 +50,75 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final grey = Theme.of(context).colorScheme.onSurfaceVariant;
     return ListenableBuilder(
       listenable: state,
       builder: (context, _) {
         final items = state.history;
         return Scaffold(
           appBar: AppBar(
-            title: const Text('History', style: TextStyle(fontWeight: FontWeight.w700)),
+            title: const Text('History'),
             actions: [
               if (items.isNotEmpty)
-                IconButton(tooltip: 'Clear history', onPressed: _clear, icon: const Icon(Icons.delete_sweep_rounded)),
+                PopupMenuButton<String>(
+                  onSelected: (_) => _clear(),
+                  itemBuilder: (_) => const [
+                    PopupMenuItem(value: 'clear', child: Text('Clear history', style: TextStyle(fontSize: 16))),
+                  ],
+                ),
             ],
           ),
           body: items.isEmpty
               ? Center(
-                  child: Column(mainAxisSize: MainAxisSize.min, children: [
-                    Icon(Icons.history_toggle_off_rounded, size: 72, color: theme.colorScheme.outline),
-                    const SizedBox(height: 12),
-                    Text('Nothing here yet', style: theme.textTheme.titleMedium),
-                    const SizedBox(height: 4),
-                    const Text('Reminders you dismiss, snooze or miss appear here.'),
-                  ]),
+                  child: Padding(
+                    padding: const EdgeInsets.all(32),
+                    child: Column(mainAxisSize: MainAxisSize.min, children: [
+                      Icon(Icons.history_rounded, size: 72, color: grey.withValues(alpha: 0.5)),
+                      const SizedBox(height: 12),
+                      const Text('Nothing here yet', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600)),
+                      const SizedBox(height: 6),
+                      Text('When a reminder rings, you will see it here.',
+                          textAlign: TextAlign.center, style: TextStyle(fontSize: 16, color: grey)),
+                    ]),
+                  ),
                 )
               : ListView.separated(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.symmetric(vertical: 8),
                   itemCount: items.length,
-                  separatorBuilder: (_, _) => const SizedBox(height: 10),
+                  separatorBuilder: (_, _) => const Divider(indent: 86),
                   itemBuilder: (context, i) {
                     final h = items[i];
                     final (label, icon, color) = _status[h.status] ?? _status['done']!;
-                    final isNew = _unseenAtOpen.contains(i);
-                    return Card(
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(20),
-                        side: isNew ? BorderSide(color: color, width: 2) : BorderSide.none,
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(14),
-                        child: Row(children: [
-                          CategoryAvatar(category: h.category, size: 48),
-                          const SizedBox(width: 14),
-                          Expanded(
-                            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                              Text(h.title, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
-                              const SizedBox(height: 2),
-                              Text('Due ${fmtWhen(context, h.dueAt)}', style: theme.textTheme.bodyMedium),
-                              const SizedBox(height: 4),
-                              Row(children: [
-                                Icon(icon, size: 18, color: color),
-                                const SizedBox(width: 4),
-                                Flexible(
-                                  child: Text(label, style: TextStyle(color: color, fontWeight: FontWeight.w600)),
-                                ),
-                              ]),
+                    return Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                      child: Row(children: [
+                        CategoryAvatar(category: h.category),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                            Text(h.title,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 17.5,
+                                  fontWeight: FontWeight.w600,
+                                  color: h.status == 'missed' ? AppColors.red : null,
+                                )),
+                            const SizedBox(height: 4),
+                            Row(children: [
+                              Icon(icon, size: 17, color: color),
+                              const SizedBox(width: 5),
+                              Flexible(child: Text(label, style: TextStyle(fontSize: 15, color: grey))),
                             ]),
-                          ),
+                          ]),
+                        ),
+                        const SizedBox(width: 8),
+                        Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                          Text(fmtTime(context, h.dueAt), style: TextStyle(fontSize: 14, color: grey)),
+                          const SizedBox(height: 4),
+                          Text(fmtDay(h.dueAt), style: TextStyle(fontSize: 13, color: grey)),
                         ]),
-                      ),
+                      ]),
                     );
                   },
                 ),

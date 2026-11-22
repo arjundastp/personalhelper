@@ -21,10 +21,10 @@ class _SoundPickerScreenState extends State<SoundPickerScreen> {
   bool loading = true;
 
   static const tabs = [
-    ('app', 'App tunes', Icons.auto_awesome_rounded),
-    ('alarm', 'Alarms', Icons.alarm_rounded),
-    ('ringtone', 'Ringtones', Icons.ring_volume_rounded),
-    ('notification', 'Notifications', Icons.notifications_rounded),
+    ('app', 'REMINDLY', Icons.auto_awesome_rounded),
+    ('alarm', 'ALARM', Icons.alarm_rounded),
+    ('ringtone', 'RINGTONE', Icons.ring_volume_rounded),
+    ('notification', 'OTHER', Icons.notifications_rounded),
   ];
 
   @override
@@ -86,7 +86,7 @@ class _SoundPickerScreenState extends State<SoundPickerScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    
     if (loading) {
       return Scaffold(appBar: AppBar(title: Text(widget.title)), body: const Center(child: CircularProgressIndicator()));
     }
@@ -95,11 +95,11 @@ class _SoundPickerScreenState extends State<SoundPickerScreen> {
       initialIndex: _initialTab,
       child: Scaffold(
         appBar: AppBar(
-          title: Text(widget.title, style: const TextStyle(fontWeight: FontWeight.w700)),
+          title: Text(widget.title),
           bottom: TabBar(
             isScrollable: true,
             tabAlignment: TabAlignment.start,
-            tabs: [for (final t in tabs) Tab(icon: Icon(t.$3), text: t.$2)],
+            tabs: [for (final t in tabs) Tab(text: t.$2)],
           ),
         ),
         bottomNavigationBar: SafeArea(
@@ -111,25 +111,22 @@ class _SoundPickerScreenState extends State<SoundPickerScreen> {
                 if (selected != null)
                   Padding(
                     padding: const EdgeInsets.only(bottom: 8),
-                    child: Text('Selected: ${selected!.title}',
-                        maxLines: 1, overflow: TextOverflow.ellipsis, style: theme.textTheme.titleSmall),
+                    child: Text('Chosen: ${selected!.title}',
+                        maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 16)),
                   ),
                 Row(children: [
                   Expanded(
                     child: OutlinedButton.icon(
-                      style: OutlinedButton.styleFrom(minimumSize: const Size(64, 56)),
                       onPressed: _pickFile,
                       icon: const Icon(Icons.folder_open_rounded),
-                      label: const Text('My files'),
+                      label: const Text('My music'),
                     ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
-                    flex: 2,
-                    child: FilledButton.icon(
+                    child: FilledButton(
                       onPressed: selected == null ? null : () => Navigator.of(context).pop(selected),
-                      icon: const Icon(Icons.check_rounded),
-                      label: const Text('Use this sound'),
+                      child: const Text('OK'),
                     ),
                   ),
                 ]),
@@ -162,14 +159,15 @@ class _SoundPickerScreenState extends State<SoundPickerScreen> {
           minVerticalPadding: 14,
           contentPadding: const EdgeInsets.symmetric(horizontal: 20),
           leading: Icon(isSel ? Icons.radio_button_checked_rounded : Icons.radio_button_off_rounded,
-              color: isSel ? theme.colorScheme.primary : theme.colorScheme.outline, size: 28),
+              color: isSel ? const Color(0xFF00A884) : theme.colorScheme.onSurfaceVariant, size: 28),
           title: Text(o.title, style: TextStyle(fontSize: 17, fontWeight: isSel ? FontWeight.w700 : FontWeight.w400)),
           subtitle: o.group == 'file' ? const Text('From your files') : null,
           trailing: IconButton(
             tooltip: isPlaying ? 'Stop' : 'Play',
             iconSize: 30,
             onPressed: () => _tap(o),
-            icon: Icon(isPlaying ? Icons.stop_circle_rounded : Icons.play_circle_rounded, color: theme.colorScheme.primary),
+            icon: Icon(isPlaying ? Icons.stop_circle_rounded : Icons.play_circle_outline_rounded,
+                color: const Color(0xFF00A884)),
           ),
           onTap: () => _tap(o),
         );

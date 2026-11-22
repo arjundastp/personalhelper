@@ -1,268 +1,173 @@
 import 'package:material_ui/material_ui.dart';
 
 import 'format.dart';
+import 'main.dart' show AppColors;
 import 'models.dart';
 
+/// Round coloured icon, like a contact photo.
 class CategoryAvatar extends StatelessWidget {
   final String category;
   final double size;
   final bool muted;
-  const CategoryAvatar({super.key, required this.category, this.size = 52, this.muted = false});
+  const CategoryAvatar({super.key, required this.category, this.size = 54, this.muted = false});
 
   @override
   Widget build(BuildContext context) {
     final c = categoryOf(category);
-    final color = muted ? Theme.of(context).colorScheme.outline : c.color;
+    final color = muted ? Theme.of(context).colorScheme.onSurfaceVariant : c.color;
     return Container(
       width: size,
       height: size,
-      decoration: BoxDecoration(color: color.withValues(alpha: 0.14), borderRadius: BorderRadius.circular(size * 0.32)),
-      child: Icon(c.icon, color: color, size: size * 0.52),
+      decoration: BoxDecoration(color: color.withValues(alpha: 0.15), shape: BoxShape.circle),
+      child: Icon(c.icon, color: color, size: size * 0.5),
     );
   }
 }
 
-class ReminderTile extends StatelessWidget {
+/// One reminder in the main list, laid out like a chat row:
+/// round icon · name + how it repeats · time on the right.
+class ReminderRow extends StatelessWidget {
   final Reminder reminder;
   final VoidCallback onTap;
-  final ValueChanged<bool> onToggle;
-  const ReminderTile({super.key, required this.reminder, required this.onTap, required this.onToggle});
+  final VoidCallback onLongPress;
+  const ReminderRow({super.key, required this.reminder, required this.onTap, required this.onLongPress});
 
   @override
   Widget build(BuildContext context) {
     final r = reminder;
     final theme = Theme.of(context);
-    final active = r.enabled && r.nextAlert != null;
+    final grey = theme.colorScheme.onSurfaceVariant;
     final next = r.nextAlert;
-    final snoozed = r.snoozedUntil != null && r.snoozedUntil == next;
-    final muted = theme.colorScheme.onSurfaceVariant;
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(14, 14, 8, 14),
-          child: Row(
-            children: [
-              CategoryAvatar(category: r.category, muted: !active),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(r.title,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w700,
-                          color: active ? null : muted,
-                        )),
-                    const SizedBox(height: 4),
-                    Text(
-                      active
-                          ? (snoozed ? 'Snoozed until ${fmtTime(context, next!)}' : fmtWhen(context, next!))
-                          : (r.repeat.type == 'once' && r.lastFired != null ? 'Done' : 'Paused'),
-                      style: theme.textTheme.bodyLarge?.copyWith(
-                        fontWeight: FontWeight.w600,
-                        color: snoozed ? const Color(0xFFF76B15) : (active ? theme.colorScheme.primary : muted),
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Row(
-                      children: [
-                        Icon(r.repeat.type == 'once' ? Icons.event_rounded : Icons.repeat_rounded, size: 16, color: muted),
-                        const SizedBox(width: 4),
-                        Expanded(
-                          child: Text(repeatSummary(context, r),
-                              maxLines: 1, overflow: TextOverflow.ellipsis, style: theme.textTheme.bodyMedium?.copyWith(color: muted)),
+    final on = r.enabled && next != null;
+    final snoozed = on && r.snoozedUntil != null && r.snoozedUntil == next;
+    final soon = on && next.difference(DateTime.now()).inHours < 24;
+    final green = theme.brightness == Brightness.light ? AppColors.green : AppColors.accent;
+
+    return InkWell(
+      onTap: onTap,
+      onLongPress: onLongPress,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+        child: Row(
+          children: [
+            CategoryAvatar(category: r.category, muted: !on),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          r.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 17.5,
+                            fontWeight: FontWeight.w600,
+                            color: on ? theme.colorScheme.onSurface : grey,
+                          ),
                         ),
-                      ],
-                    ),
-                  ],
-                ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        on ? fmtTime(context, next) : '',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: soon ? FontWeight.w600 : FontWeight.w400,
+                          color: snoozed ? const Color(0xFFF76B15) : (soon ? green : grey),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Icon(
+                        snoozed
+                            ? Icons.snooze_rounded
+                            : (r.repeat.type == 'once' ? Icons.event_outlined : Icons.repeat_rounded),
+                        size: 17,
+                        color: snoozed ? const Color(0xFFF76B15) : grey,
+                      ),
+                      const SizedBox(width: 5),
+                      Expanded(
+                        child: Text(
+                          snoozed ? 'Snoozed' : (on ? repeatSummary(context, r) : _offText(r)),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(fontSize: 15, color: grey),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      if (on)
+                        Text(fmtDay(next), style: TextStyle(fontSize: 13, color: grey))
+                      else
+                        _Pill(text: r.repeat.type == 'once' && r.lastFired != null ? 'Done' : 'Off'),
+                    ],
+                  ),
+                ],
               ),
-              Switch(value: r.enabled, onChanged: onToggle),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class NextUpCard extends StatelessWidget {
-  final Reminder reminder;
-  final VoidCallback onTap;
-  const NextUpCard({super.key, required this.reminder, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    final r = reminder;
-    final c = categoryOf(r.category);
-    final next = r.nextAlert!;
-    return Material(
-      borderRadius: BorderRadius.circular(24),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: Ink(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [c.color, Color.lerp(c.color, Colors.black, 0.25)!],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
             ),
-          ),
-          padding: const EdgeInsets.all(20),
-          child: Row(
-            children: [
-              Container(
-                width: 64,
-                height: 64,
-                decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.2), shape: BoxShape.circle),
-                child: Icon(c.icon, color: Colors.white, size: 34),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(r.title,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w700)),
-                    const SizedBox(height: 6),
-                    Text(fmtWhen(context, next),
-                        style: const TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w600)),
-                    const SizedBox(height: 2),
-                    Text(fmtRelative(next), style: TextStyle(color: Colors.white.withValues(alpha: 0.85), fontSize: 15)),
-                  ],
-                ),
-              ),
-            ],
-          ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _offText(Reminder r) => r.repeat.type == 'once' && r.lastFired != null
+      ? 'Finished · ${fmtDay(r.startDate)}'
+      : 'Turned off';
+}
+
+class _Pill extends StatelessWidget {
+  final String text;
+  const _Pill({required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    final grey = Theme.of(context).colorScheme.onSurfaceVariant;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+      decoration: BoxDecoration(color: grey.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(20)),
+      child: Text(text, style: TextStyle(fontSize: 13, color: grey, fontWeight: FontWeight.w600)),
+    );
+  }
+}
+
+/// Small green section title ("Today", "Later" …).
+class ListHeader extends StatelessWidget {
+  final String text;
+  const ListHeader(this.text, {super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 4),
+      child: Text(
+        text,
+        style: TextStyle(
+          fontSize: 15,
+          fontWeight: FontWeight.w600,
+          color: theme.brightness == Brightness.light ? AppColors.green : AppColors.accent,
         ),
       ),
     );
   }
 }
 
-class NoticeCard extends StatelessWidget {
+/// A settings-style row: grey icon, title, optional grey value underneath.
+class OptionRow extends StatelessWidget {
   final IconData icon;
-  final Color color;
   final String title;
-  final String message;
-  final String action;
-  final VoidCallback onTap;
-  const NoticeCard({
-    super.key,
-    required this.icon,
-    required this.color,
-    required this.title,
-    required this.message,
-    required this.action,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Material(
-      color: color.withValues(alpha: 0.12),
-      borderRadius: BorderRadius.circular(20),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(20),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              Icon(icon, color: color, size: 32),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(title, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
-                    const SizedBox(height: 2),
-                    Text(message, style: theme.textTheme.bodyMedium),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              Text(action, style: TextStyle(color: color, fontWeight: FontWeight.w700, fontSize: 16)),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class TemplateChip extends StatelessWidget {
-  final Template template;
-  final VoidCallback onTap;
-  final bool selected;
-  const TemplateChip({super.key, required this.template, required this.onTap, this.selected = false});
-
-  @override
-  Widget build(BuildContext context) {
-    final c = categoryOf(template.category);
-    return ActionChip(
-      avatar: Icon(c.icon, color: c.color, size: 20),
-      label: Text(template.label, style: const TextStyle(fontSize: 15)),
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
-      backgroundColor: selected ? c.color.withValues(alpha: 0.15) : null,
-      side: BorderSide(color: selected ? c.color : c.color.withValues(alpha: 0.3)),
-      onPressed: onTap,
-    );
-  }
-}
-
-/// Section title + rounded card holding a group of rows.
-class Section extends StatelessWidget {
-  final String title;
-  final List<Widget> children;
-  final Widget? trailing;
-  const Section({super.key, required this.title, required this.children, this.trailing});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(6, 20, 6, 8),
-          child: Row(
-            children: [
-              Expanded(
-                child: Text(title,
-                    style: theme.textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      color: theme.colorScheme.primary,
-                      letterSpacing: 0.3,
-                    )),
-              ),
-              ?trailing,
-            ],
-          ),
-        ),
-        Card(clipBehavior: Clip.antiAlias, child: Column(children: children)),
-      ],
-    );
-  }
-}
-
-/// A big, easy to hit row: icon, label, value, chevron.
-class BigTile extends StatelessWidget {
-  final IconData icon;
-  final String label;
   final String? value;
   final VoidCallback? onTap;
   final Widget? trailing;
-  final Color? iconColor;
-  const BigTile({super.key, required this.icon, required this.label, this.value, this.onTap, this.trailing, this.iconColor});
+  final Color? color;
+  const OptionRow({super.key, required this.icon, required this.title, this.value, this.onTap, this.trailing, this.color});
 
   @override
   Widget build(BuildContext context) {
@@ -270,24 +175,27 @@ class BigTile extends StatelessWidget {
     return InkWell(
       onTap: onTap,
       child: ConstrainedBox(
-        constraints: const BoxConstraints(minHeight: 64),
+        constraints: const BoxConstraints(minHeight: 68),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
           child: Row(
             children: [
-              Icon(icon, color: iconColor ?? theme.colorScheme.primary, size: 26),
-              const SizedBox(width: 16),
+              Icon(icon, size: 26, color: color ?? theme.colorScheme.onSurfaceVariant),
+              const SizedBox(width: 24),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(label, style: theme.textTheme.titleMedium),
-                    if (value != null)
-                      Text(value!, style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+                    Text(title, style: TextStyle(fontSize: 17, color: color ?? theme.colorScheme.onSurface)),
+                    if (value != null) ...[
+                      const SizedBox(height: 2),
+                      Text(value!, style: TextStyle(fontSize: 15, color: theme.colorScheme.onSurfaceVariant)),
+                    ],
                   ],
                 ),
               ),
-              trailing ?? (onTap != null ? Icon(Icons.chevron_right_rounded, color: theme.colorScheme.outline) : const SizedBox()),
+              ?trailing,
             ],
           ),
         ),
@@ -296,35 +204,161 @@ class BigTile extends StatelessWidget {
   }
 }
 
-/// [-]  value  [+] stepper with large touch targets.
-class Stepper2 extends StatelessWidget {
-  final int value;
-  final int min;
-  final int max;
-  final String Function(int) label;
-  final ValueChanged<int> onChanged;
-  const Stepper2({super.key, required this.value, this.min = 1, this.max = 99, required this.label, required this.onChanged});
+/// Grey band that separates groups of rows, like in a phone's settings.
+class GroupGap extends StatelessWidget {
+  final String? title;
+  const GroupGap({super.key, this.title});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(height: 8, color: theme.colorScheme.outlineVariant.withValues(alpha: 0.6)),
+        if (title != null) ListHeader(title!),
+      ],
+    );
+  }
+}
+
+/// Bottom sheet with a simple list of choices; returns the chosen value.
+Future<T?> chooseOne<T>(
+  BuildContext context, {
+  required String title,
+  required List<(T, String)> options,
+  required T current,
+}) {
+  return showModalBottomSheet<T>(
+    context: context,
+    isScrollControlled: true,
+    builder: (c) => SafeArea(
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 0, 24, 8),
+              child: Text(title, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600)),
+            ),
+            for (final (value, label) in options)
+              RadioRow(label: label, selected: value == current, onTap: () => Navigator.pop(c, value)),
+            const SizedBox(height: 12),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+/// A big radio-button row.
+class RadioRow extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+  const RadioRow({super.key, required this.label, required this.selected, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final grey = Theme.of(context).colorScheme.onSurfaceVariant;
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+        child: Row(children: [
+          Icon(selected ? Icons.radio_button_checked_rounded : Icons.radio_button_off_rounded,
+              color: selected ? AppColors.accent : grey, size: 26),
+          const SizedBox(width: 20),
+          Expanded(child: Text(label, style: const TextStyle(fontSize: 17))),
+        ]),
+      ),
+    );
+  }
+}
+
+
+/// Round day buttons M T W T F S S.
+class DayPicker extends StatelessWidget {
+  final Set<int> selected;
+  final ValueChanged<int> onToggle;
+  const DayPicker({super.key, required this.selected, required this.onToggle});
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        IconButton.filledTonal(
-          iconSize: 26,
-          onPressed: value > min ? () => onChanged(value - 1) : null,
-          icon: const Icon(Icons.remove_rounded),
-        ),
-        Expanded(
-          child: Text(label(value),
-              textAlign: TextAlign.center, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
-        ),
-        IconButton.filledTonal(
-          iconSize: 26,
-          onPressed: value < max ? () => onChanged(value + 1) : null,
-          icon: const Icon(Icons.add_rounded),
-        ),
+        for (var d = 1; d <= 7; d++)
+          Semantics(
+            label: weekdayShort[d - 1],
+            selected: selected.contains(d),
+            button: true,
+            child: InkWell(
+              customBorder: const CircleBorder(),
+              onTap: () => onToggle(d),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 150),
+                width: 42,
+                height: 42,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: selected.contains(d) ? AppColors.accent : theme.colorScheme.outlineVariant,
+                ),
+                child: Text(
+                  weekdayLetter[d - 1],
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w700,
+                    color: selected.contains(d) ? Colors.white : theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+            ),
+          ),
       ],
+    );
+  }
+}
+
+/// Simple tinted banner row shown at the top of the list.
+class BannerRow extends StatelessWidget {
+  final IconData icon;
+  final Color color;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+  const BannerRow({super.key, required this.icon, required this.color, required this.title, required this.subtitle, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: color.withValues(alpha: 0.10),
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 14, 12, 14),
+          child: Row(children: [
+            Container(
+              width: 54,
+              height: 54,
+              decoration: BoxDecoration(color: color.withValues(alpha: 0.18), shape: BoxShape.circle),
+              child: Icon(icon, color: color, size: 28),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(title, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600)),
+                const SizedBox(height: 2),
+                Text(subtitle, style: TextStyle(fontSize: 15, color: Theme.of(context).colorScheme.onSurfaceVariant)),
+              ]),
+            ),
+            Icon(Icons.chevron_right_rounded, color: color),
+          ]),
+        ),
+      ),
     );
   }
 }
