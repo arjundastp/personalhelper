@@ -24,8 +24,9 @@ import java.time.LocalDate
 import java.time.ZoneId
 
 /**
- * Team summary: reads yesterday's Microsoft Teams chats through the company's Microsoft 365
- * Teams MCP server (Agent 365), READ tools only, and summarises them on the phone.
+ * Team summary: reads yesterday's Microsoft Teams chats, read-only, and summarises them on the phone.
+ * Two connection types: Microsoft Graph with Chat.Read (default; Microsoft enforces read-only), or the
+ * company's Microsoft 365 Teams MCP server (Agent 365), where only read tools may be called.
  *
  * Privacy rules enforced here:
  *  - The tenant ID and client ID are typed in by the user and stored on the phone only.
@@ -64,7 +65,12 @@ object Team {
     private var app: ISingleAccountPublicClientApplication? = null
     private var appKey: String? = null
 
-    private fun scope(ctx: Context): String = Store.team(ctx).optString("scope").trim().ifEmpty { DEFAULT_SCOPE }
+    /** "graph" (default): Microsoft Graph with Chat.Read. "mcp": the company's Teams MCP server. */
+    private fun graphMode(ctx: Context) = Store.team(ctx).optString("mode", "graph") != "mcp"
+
+    private fun scopes(ctx: Context): List<String> =
+        if (graphMode(ctx)) listOf("https://graph.microsoft.com/Chat.Read", "https://graph.microsoft.com/User.Read")
+        else listOf(Store.team(ctx).optString("scope").trim().ifEmpty { DEFAULT_SCOPE })
 
     private fun server(ctx: Context, tenant: String): String =
         Store.team(ctx).optString("serverUrl").trim().ifEmpty { DEFAULT_SERVER }.replace("{tenantId}", tenant)
@@ -111,7 +117,7 @@ object Team {
                     c.signIn(
                         SignInParameters.builder()
                             .withActivity(activity)
-                            .withScopes(listOf(scope(activity)))
+                            .withScopes(scopes(activity))
                             .withCallback(object : AuthenticationCallback {
                                 override fun onSuccess(r: IAuthenticationResult) = done(Result.success(r.account.username))
                                 override fun onError(e: MsalException) = done(Result.failure(e))
@@ -141,7 +147,7 @@ object Team {
             AcquireTokenSilentParameters.Builder()
                 .forAccount(account)
                 .fromAuthority("https://login.microsoftonline.com/$tenant")
-                .withScopes(listOf(scope(ctx)))
+                .withScopes(scopes(ctx))
                 .build()
         )
         return r.accessToken to account.username
@@ -272,8 +278,41 @@ object Team {
 
     // ---------------- the daily pull ----------------
 
+    // ---------------- Microsoft Graph (read-only: Chat.Read, GET requests only) ----------------
+
+    private const val GRAPH = "https://graph.microsoft.com/v1.0"
+
+    /** The ONLY way Graph is called: GET to graph.microsoft.com. Chat.Read itself cannot write. */
+    private fun graphGet(token: String, url: String): JSONObject {
+        require(url.startsWith("$GRAPH/")) { "Blocked request outside Microsoft Graph" }
+        val c = URL(url).openConnection() as HttpURLConnection
+        try {
+            c.requestMethod = "GET"
+            c.connectTimeout = 20_000
+            c.readTimeout = 60_000
+            c.setRequestProperty("Authorization", "Bearer $token")
+            c.setRequestProperty("Accept", "application/json")
+            val code = c.responseCode
+            val text = (if (code in 200..299) c.inputStream else c.errorStream)?.bufferedReader()?.use { it.readText() } ?: ""
+            if (code !in 200..299) {
+                val msg = runCatching { JSONObject(text).optJSONObject("error")?.optString("message") }.getOrNull() ?: text.take(200)
+                error("Microsoft Graph answered $code${if (code == 401 || code == 403) " (Chat.Read not approved yet?)" else ""}: $msg")
+            }
+            return JSONObject(text)
+        } finally {
+            c.disconnect()
+        }
+    }
+
+    private fun values(o: JSONObject): List<JSONObject> =
+        o.optJSONArray("value")?.let { a -> (0 until a.length()).mapNotNull { a.optJSONObject(it) } } ?: emptyList()
+
+    private fun enc(s: String) = java.net.URLEncoder.encode(s, "UTF-8").replace("+", "%20")
+
+    // ---------------- the daily pull ----------------
+
     /**
-     * Reads yesterday's chat messages (read tools only), summarises them on the phone and returns
+     * Reads yesterday's chat messages (read-only), summarises them on the phone and returns
      * a JSON summary plus a diagnostics block (no message text in diagnostics).
      */
     fun pullYesterday(ctx: Context): JSONObject {
@@ -286,42 +325,68 @@ object Team {
         val from = day.atStartOfDay(zone).toInstant()
         val to = day.plusDays(1).atStartOfDay(zone).toInstant()
 
-        val mcp = Mcp(server(ctx, tenant), accessToken)
-        mcp.start()
-        val all = mcp.tools()
-        val readTools = all.filter { isReadOnlyTool(it.optString("name")) }
-        diag.put("toolsTotal", all.size)
-        diag.put("toolsAllowed", JSONArray(readTools.map { it.optString("name") }))
-        diag.put("toolsBlocked", all.size - readTools.size)
+        val chats: List<JSONObject>
+        val fetch: (JSONObject) -> List<JSONObject>
+        var myName = username.substringBefore('@').substringBefore('.')
 
-        fun find(vararg must: String, not: String? = null) = readTools.firstOrNull { t ->
-            val n = t.optString("name").lowercase()
-            must.all { n.contains(it) } && (not == null || !n.contains(not))
+        if (graphMode(ctx)) {
+            diag.put("mode", "Microsoft Graph (Chat.Read)")
+            runCatching { graphGet(accessToken, "$GRAPH/me?\$select=displayName").optStringOrNull("displayName") }.getOrNull()?.let { myName = it }
+            val listUrl = "$GRAPH/me/chats?\$top=50&\$expand=lastMessagePreview&\$orderby=${enc("lastMessagePreview/createdDateTime desc")}"
+            chats = runCatching { values(graphGet(accessToken, listUrl)) }
+                .getOrElse { values(graphGet(accessToken, "$GRAPH/me/chats?\$top=50&\$expand=lastMessagePreview")) }
+            fetch = { chat ->
+                val out = ArrayList<JSONObject>()
+                var url: String? = "$GRAPH/me/chats/${enc(chat.optString("id"))}/messages?\$top=50&\$orderby=${enc("createdDateTime desc")}"
+                var pages = 0
+                while (url != null && pages++ < 4) {
+                    val page = graphGet(accessToken, url)
+                    val items = values(page)
+                    out.addAll(items)
+                    val oldest = items.lastOrNull()?.optStringOrNull("createdDateTime")?.let { runCatching { Instant.parse(it) }.getOrNull() }
+                    url = if (oldest != null && oldest.isAfter(from)) page.optStringOrNull("@odata.nextLink") else null
+                }
+                out
+            }
+        } else {
+            diag.put("mode", "Teams MCP server")
+            val mcp = Mcp(server(ctx, tenant), accessToken)
+            mcp.start()
+            val all = mcp.tools()
+            val readTools = all.filter { isReadOnlyTool(it.optString("name")) }
+            diag.put("toolsTotal", all.size)
+            diag.put("toolsAllowed", JSONArray(readTools.map { it.optString("name") }))
+            diag.put("toolsBlocked", all.size - readTools.size)
+            fun find(vararg must: String, not: String? = null) = readTools.firstOrNull { t ->
+                val n = t.optString("name").lowercase()
+                must.all { n.contains(it) } && (not == null || !n.contains(not))
+            }
+            val listChats = find("list", "chat", not = "message") ?: error("No read tool for listing chats was found on the Teams server.")
+            val listMessages = find("list", "chat", "message") ?: find("list", "message") ?: error("No read tool for chat messages was found.")
+            diag.put("chatTool", listChats.optString("name"))
+            diag.put("messageTool", listMessages.optString("name"))
+            chats = items(mcp.call(listChats.optString("name"), limitArgs(listChats, JSONObject())))
+            val idKey = idParam(listMessages, "chat")
+            fetch = { chat -> items(mcp.call(listMessages.optString("name"), limitArgs(listMessages, JSONObject().put(idKey, chat.optString("id"))))) }
         }
-        val listChats = find("list", "chat", not = "message") ?: error("No read tool for listing chats was found on the Teams server.")
-        val listMessages = find("list", "chat", "message") ?: find("list", "message") ?: error("No read tool for chat messages was found.")
-        diag.put("chatTool", listChats.optString("name"))
-        diag.put("messageTool", listMessages.optString("name"))
-
-        val chats = items(mcp.call(listChats.optString("name"), limitArgs(listChats, JSONObject())))
         diag.put("chatsListed", chats.size)
+
         // Skip chats with no activity since yesterday started (when the server tells us).
         val recent = chats.filter { c ->
-            val t = c.optStringOrNull("lastUpdatedDateTime") ?: c.optJSONObject("lastMessagePreview")?.optStringOrNull("createdDateTime")
+            val t = c.optJSONObject("lastMessagePreview")?.optStringOrNull("createdDateTime") ?: c.optStringOrNull("lastUpdatedDateTime")
             t == null || runCatching { !Instant.parse(t).isBefore(from) }.getOrDefault(true)
         }.take(MAX_CHATS)
 
-        val idKey = idParam(listMessages, "chat")
-        val firstName = username.substringBefore('@').substringBefore('.').lowercase()
+        val firstName = myName.substringBefore(' ').lowercase()
         val perChat = JSONArray()
         val actions = JSONArray()
         var totalMessages = 0
         val chatTexts = ArrayList<Pair<String, String>>()
 
         for (c in recent) {
-            val chatId = c.optString("id").ifEmpty { continue }
-            val msgs = runCatching { items(mcp.call(listMessages.optString("name"), limitArgs(listMessages, JSONObject().put(idKey, chatId)))) }
-                .getOrElse { emptyList() }
+            if (c.optString("id").isEmpty()) continue
+            val msgs = runCatching { fetch(c) }.getOrElse { emptyList() }
+            val senders = LinkedHashSet<String>()
             val lines = msgs.mapNotNull { m ->
                 val created = m.optStringOrNull("createdDateTime") ?: return@mapNotNull null
                 val at = runCatching { Instant.parse(created) }.getOrNull() ?: return@mapNotNull null
@@ -330,20 +395,22 @@ object Team {
                 val text = plain(m.optJSONObject("body")?.optString("content") ?: "")
                 if (text.isBlank()) return@mapNotNull null
                 val who = m.optJSONObject("from")?.optJSONObject("user")?.optString("displayName")?.ifBlank { null } ?: "Someone"
+                senders.add(who)
                 at to "$who: $text"
             }.sortedBy { it.first }.map { it.second }
             if (lines.isEmpty()) continue
             totalMessages += lines.size
+            val other = senders.firstOrNull { !it.equals(myName, ignoreCase = true) }
             val name = c.optStringOrNull("topic") ?: when (c.optString("chatType")) {
-                "oneOnOne" -> "1:1 chat"
+                "oneOnOne" -> if (other != null) "Chat with $other" else "1:1 chat"
                 "meeting" -> "Meeting chat"
                 else -> "Group chat"
             }
             chatTexts.add(name to lines.joinToString("\n"))
-            // Things that look like they need you: mentions of your name, or questions to you.
+            // Things that look like they need you: messages from others that mention your first name.
             lines.filter { l ->
                 val low = l.lowercase()
-                firstName.length > 2 && low.contains(firstName) && !low.startsWith(firstName)
+                firstName.length > 2 && low.contains(firstName) && !low.startsWith(myName.lowercase())
             }.take(2).forEach { actions.put(JSONObject().put("text", it.take(220)).put("source", name)) }
             perChat.put(JSONObject().put("name", name).put("count", lines.size))
         }
@@ -354,12 +421,10 @@ object Team {
         val (model, summaries) = summarise(ctx, chatTexts)
         for (i in 0 until perChat.length()) perChat.getJSONObject(i).put("points", JSONArray(summaries.getOrElse(i) { emptyList() }))
         val highlights = JSONArray()
-        perChat.let { arr ->
-            (0 until arr.length()).map { arr.getJSONObject(it) }
-                .sortedByDescending { it.optInt("count") }
-                .take(3)
-                .forEach { ch -> ch.optJSONArray("points")?.optString(0)?.takeIf { it.isNotBlank() }?.let { highlights.put("${ch.optString("name")}: $it") } }
-        }
+        (0 until perChat.length()).map { perChat.getJSONObject(it) }
+            .sortedByDescending { it.optInt("count") }
+            .take(3)
+            .forEach { ch -> ch.optJSONArray("points")?.optString(0)?.takeIf { it.isNotBlank() }?.let { highlights.put("${ch.optString("name")}: $it") } }
         diag.put("model", model)
         diag.put("seconds", (System.currentTimeMillis() - started) / 1000)
 

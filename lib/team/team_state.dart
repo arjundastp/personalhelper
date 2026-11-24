@@ -45,7 +45,8 @@ class TeamState extends ChangeNotifier {
   bool enabled = false;
   String tenantId = '';
   String clientId = '';
-  String scope = ''; // empty = app default (shared Agent 365 Tools, Teams scope)
+  String mode = 'graph'; // 'graph' (Microsoft Graph, Chat.Read) or 'mcp' (company Teams MCP server)
+  String scope = ''; // MCP only; empty = app default (shared Agent 365 Tools, Teams scope)
   String serverUrl = ''; // empty = app default Teams MCP server address
   String? account;
   String? lastTestPull; // yyyy-MM-dd of the last manual test pull (limited to once a day)
@@ -67,6 +68,7 @@ class TeamState extends ChangeNotifier {
         'enabled': enabled,
         'tenantId': tenantId,
         'clientId': clientId,
+        'mode': mode,
         'scope': scope,
         'serverUrl': serverUrl,
         'account': account,
@@ -80,6 +82,7 @@ class TeamState extends ChangeNotifier {
     enabled = j['enabled'] as bool? ?? false;
     tenantId = j['tenantId'] as String? ?? '';
     clientId = j['clientId'] as String? ?? '';
+    mode = j['mode'] as String? ?? 'graph';
     scope = j['scope'] as String? ?? '';
     serverUrl = j['serverUrl'] as String? ?? '';
     account = j['account'] as String?;
@@ -121,10 +124,12 @@ class TeamState extends ChangeNotifier {
   static const defaultScope = 'ea9ffc3e-8a23-4a7d-836d-234d7c7565c1/McpServers.Teams.All';
   static const defaultServer = 'https://agent365.svc.cloud.microsoft/agents/tenants/{tenantId}/servers/mcp_TeamsServer';
 
-  Future<void> setIds(String tenant, String client, {String? scope, String? serverUrl}) async {
+  Future<void> setIds(String tenant, String client, {String? mode, String? scope, String? serverUrl}) async {
     final s = (scope ?? this.scope).trim();
     final u = (serverUrl ?? this.serverUrl).trim();
-    final changed = tenant.trim() != tenantId || client.trim() != clientId || s != this.scope;
+    final m = mode ?? this.mode;
+    final changed = tenant.trim() != tenantId || client.trim() != clientId || s != this.scope || m != this.mode;
+    this.mode = m;
     tenantId = tenant.trim();
     clientId = client.trim();
     this.scope = s == defaultScope ? '' : s;
@@ -217,7 +222,7 @@ class TeamState extends ChangeNotifier {
       'DayMate Team summary – connection check',
       'Date: ${lastTestPull ?? '-'}',
       'Result: ${lastError == null ? 'OK' : 'Error – $lastError'}',
-      'Permission: ${scope.isEmpty ? 'default' : scope} · Server: ${serverUrl.isEmpty ? 'default' : 'custom'}',
+      'Connection: ${mode == 'mcp' ? 'Teams MCP server · permission ${scope.isEmpty ? 'default' : scope} · server ${serverUrl.isEmpty ? 'default' : 'custom'}' : 'Microsoft Graph (Chat.Read)'}',
       'Tools on server: ${d['toolsTotal'] ?? '-'} (read-only allowed: ${(d['toolsAllowed'] as List?)?.length ?? '-'}, blocked: ${d['toolsBlocked'] ?? '-'})',
       'Allowed tools: ${(d['toolsAllowed'] as List?)?.join(', ') ?? '-'}',
       'Chat tool: ${d['chatTool'] ?? '-'} · Message tool: ${d['messageTool'] ?? '-'}',
