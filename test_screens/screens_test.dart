@@ -15,9 +15,7 @@ import 'package:remindly/screens/home_screen.dart';
 import 'package:remindly/screens/settings_screen.dart';
 import 'package:remindly/screens/sound_picker_screen.dart';
 import 'package:remindly/screens/shell.dart';
-import 'package:remindly/sprint/parked_screen.dart';
 import 'package:remindly/sprint/review_screen.dart';
-import 'package:remindly/sprint/sprint_history_screen.dart';
 import 'package:remindly/sprint/sprint_settings_screen.dart';
 import 'package:remindly/state.dart';
 
@@ -81,6 +79,11 @@ Map<String, dynamic> sprintJson({bool enabled = true}) {
       t('Clean up old test data', ago(2), 'paused'),
       t('Call vendor', ago(6), 'done'),
       t('Expense report', ago(6), 'not'),
+      for (var d = 7; d < 34; d++)
+        if (ago(d).weekday <= 5)
+          for (var k = 0; k < 2 + (d * 7) % 4; k++)
+            t(k == 0 && d % 3 == 0 ? 'Expense report' : 'Task $d-$k', ago(d),
+                ((d * 31 + k * 17) % 10) < (ago(d).weekday == 2 ? 9 : 6) ? 'done' : (((d + k) % 3 == 0) ? 'paused' : 'not')),
     ],
     'parked': [
       {'id': 50, 'text': 'Update the onboarding document', 'pausedOn': iso(ago(1))},
@@ -165,8 +168,28 @@ void main() {
       await t.pumpAndSettle();
       await expectLater(find.byType(MaterialApp), matchesGoldenFile('goldens/s3_review.png'));
     });
-    testWidgets('parked', (t) => shot(t, 's4_parked', const ParkedScreen()));
-    testWidgets('history', (t) => shot(t, 's5_history', const SprintHistoryScreen()));
+    Future<void> sprintTab(WidgetTester t, String name, String tab, {ThemeMode mode = ThemeMode.light, bool thirty = false}) async {
+      await shot(t, name, const Shell(), mode: mode);
+      await t.tap(find.text('Daily Sprint').last);
+      await t.pumpAndSettle();
+      await t.tap(find.text(tab));
+      await t.pumpAndSettle();
+      if (thirty) {
+        await t.tap(find.text('30 days'));
+        await t.pumpAndSettle();
+      }
+      await expectLater(find.byType(MaterialApp), matchesGoldenFile('goldens/$name.png'));
+    }
+    testWidgets('parked', (t) => sprintTab(t, 's4_parked', 'PARKED'));
+    testWidgets('history', (t) => sprintTab(t, 's5_history', 'HISTORY'));
+    testWidgets('insights', (t) => sprintTab(t, 's7_insights', 'INSIGHTS'));
+    testWidgets('insights 30 dark', (t) => sprintTab(t, 's8_insights_30_dark', 'INSIGHTS', mode: ThemeMode.dark, thirty: true));
+    testWidgets('insights scrolled', (t) async {
+      await sprintTab(t, 's9_insights_lower', 'INSIGHTS');
+      await t.drag(find.byType(ListView).last, const Offset(0, -700));
+      await t.pumpAndSettle();
+      await expectLater(find.byType(MaterialApp), matchesGoldenFile('goldens/s9_insights_lower.png'));
+    });
     testWidgets('sprint settings', (t) => shot(t, 's6_sprint_settings', const SprintSettingsScreen()));
   });
   testWidgets('home dark', (t) => shot(t, '2_home_dark', const HomeScreen(), mode: ThemeMode.dark));

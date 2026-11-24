@@ -71,11 +71,11 @@ class _ReviewScreenState extends State<ReviewScreen> {
                   padding: const EdgeInsets.only(bottom: 16),
                   children: [
                     Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 18, 20, 6),
+                      padding: const EdgeInsets.fromLTRB(16, 14, 16, 4),
                       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        Text(DateFormat('EEEE, d MMMM').format(date), style: TextStyle(fontSize: 16, color: grey)),
+                        Text(DateFormat('EEEE, d MMMM').format(date), style: TextStyle(fontSize: 14, color: grey)),
                         const SizedBox(height: 4),
-                        Text('Tap Done, Not done or Paused for each task.', style: TextStyle(fontSize: 15, color: grey)),
+                        Text('Choose Done, Not done or Paused for each task.', style: TextStyle(fontSize: 13, color: grey)),
                       ]),
                     ),
                     for (final t in tasks) _answerRow(context, t),
@@ -88,45 +88,46 @@ class _ReviewScreenState extends State<ReviewScreen> {
     final theme = Theme.of(context);
     final s = status[t.id];
     return Container(
-      padding: const EdgeInsets.fromLTRB(20, 14, 20, 14),
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
       decoration: BoxDecoration(border: Border(bottom: BorderSide(color: theme.colorScheme.outlineVariant))),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(t.text, style: const TextStyle(fontSize: 17.5, fontWeight: FontWeight.w600)),
+        Text(t.text, style: const TextStyle(fontSize: 15.5, fontWeight: FontWeight.w600)),
         if (t.from != null)
           Padding(
             padding: const EdgeInsets.only(top: 2),
-            child: Text(t.from!, style: const TextStyle(fontSize: 13.5, color: notDoneColor)),
+            child: Text(t.from!, style: const TextStyle(fontSize: 12, color: notDoneColor)),
           ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 8),
         Row(children: [
           Expanded(child: _choice(Icons.check_rounded, 'Done', AppColors.accent, s == TaskStatus.done, () => setState(() => status[t.id] = TaskStatus.done))),
-          const SizedBox(width: 8),
+          const SizedBox(width: 6),
           Expanded(child: _choice(Icons.close_rounded, 'Not done', notDoneColor, s == TaskStatus.notDone, () => setState(() => status[t.id] = TaskStatus.notDone))),
-          const SizedBox(width: 8),
+          const SizedBox(width: 6),
           Expanded(child: _choice(Icons.pause_rounded, 'Paused', sprintBlue, s == TaskStatus.paused, () => setState(() => status[t.id] = TaskStatus.paused))),
         ]),
         if (s == TaskStatus.notDone)
           InkWell(
             onTap: () => setState(() => move[t.id] = !(move[t.id] ?? true)),
             child: Padding(
-              padding: const EdgeInsets.only(top: 8),
+              padding: const EdgeInsets.only(top: 4),
               child: Row(children: [
                 Checkbox(
+                  visualDensity: VisualDensity.compact,
                   value: move[t.id] ?? true,
                   activeColor: AppColors.accent,
                   onChanged: (v) => setState(() => move[t.id] = v ?? false),
                 ),
-                Expanded(child: Text('Move to $_nextDayLabel', style: const TextStyle(fontSize: 15.5))),
+                Expanded(child: Text('Move to $_nextDayLabel', style: const TextStyle(fontSize: 14))),
               ]),
             ),
           ),
         if (s == TaskStatus.paused)
           const Padding(
-            padding: EdgeInsets.only(top: 10),
+            padding: EdgeInsets.only(top: 8),
             child: Row(children: [
-              Icon(Icons.inventory_2_outlined, size: 20, color: sprintBlue),
+              Icon(Icons.inventory_2_outlined, size: 17, color: sprintBlue),
               SizedBox(width: 10),
-              Text('Goes to your Parked tasks list', style: TextStyle(fontSize: 15, color: sprintBlue)),
+              Text('Goes to the Parked tab', style: TextStyle(fontSize: 13, color: sprintBlue)),
             ]),
           ),
       ]),
@@ -145,9 +146,9 @@ class _ReviewScreenState extends State<ReviewScreen> {
           customBorder: const StadiumBorder(),
           onTap: onTap,
           child: SizedBox(
-            height: 46,
+            height: 36,
             child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-              Icon(icon, size: 18, color: selected ? Colors.white : theme.colorScheme.onSurfaceVariant),
+              Icon(icon, size: 16, color: selected ? Colors.white : theme.colorScheme.onSurfaceVariant),
               const SizedBox(width: 4),
               Flexible(
                 child: Text(
@@ -155,7 +156,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: 15,
+                    fontSize: 13.5,
                     fontWeight: FontWeight.w600,
                     color: selected ? Colors.white : theme.colorScheme.onSurface,
                   ),

@@ -144,7 +144,7 @@ ThemeData buildTheme(Brightness b, {String? fontFamily}) {
             color: s.contains(WidgetState.selected) ? (light ? const Color(0xFF005C4B) : AppColors.accent) : scheme.onSurfaceVariant,
           )),
     ),
-    badgeTheme: BadgeThemeData(backgroundColor: AppColors.accent, textStyle: TextStyle(fontFamily: fontFamily, fontSize: 11, fontWeight: FontWeight.w700)),
+    badgeTheme: BadgeThemeData(backgroundColor: AppColors.accent, textColor: Colors.white, textStyle: TextStyle(fontFamily: fontFamily, fontSize: 11, fontWeight: FontWeight.w700)),
     dialogTheme: DialogThemeData(backgroundColor: light ? Colors.white : AppColors.darkBar),
     snackBarTheme: const SnackBarThemeData(behavior: SnackBarBehavior.floating),
   );

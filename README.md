@@ -4,7 +4,7 @@ An offline Android reminder app (Flutter UI with a native Android alarm engine).
 
 ## Download
 
-**[⬇ Download Remindly for Android](https://github.com/arjundastp/personalhelper/raw/main/downloads/Remindly.apk)** (version 1.3, about 18 MB, Android 8.0 or newer)
+**[⬇ Download Remindly for Android](https://github.com/arjundastp/personalhelper/raw/main/downloads/Remindly.apk)** (version 1.4, about 18 MB, Android 8.0 or newer)
 
 - Most phones: [`Remindly.apk`](https://github.com/arjundastp/personalhelper/raw/main/downloads/Remindly.apk)
 - Older or very low-cost phones (32-bit): [`Remindly-older-phones.apk`](https://github.com/arjundastp/personalhelper/raw/main/downloads/Remindly-older-phones.apk)
@@ -20,7 +20,8 @@ On first start, tap **Allow** so reminders can ring and show full screen.
   Add small tasks for the day in a message-style box. A morning nudge comes at 10:30 AM and a full-screen
   "How did today go?" alert at 6:30 PM (both editable, work days only). Mark each task Done, Not done
   (optionally moved to the next work day, labelled "Moved from …") or Paused (goes to the Parked tasks list).
-  Also includes past days with a weekly score and a streak. Code: `lib/sprint/`, `android/.../Sprint.kt`.
+  Tabs across the top (Today · Insights · Parked · History); Insights shows completion %, a daily progress chart,
+  how tasks ended, an activity calendar, best weekdays and tasks that keep slipping. Code: `lib/sprint/`, `android/.../Sprint.kt`.
 - **Full-screen alert:** turns the screen on and shows over the lock screen, with large **Done** and **Snooze** buttons.
 - **Rings in silent mode:** sound plays on the *alarm* stream, so silent or vibrate mode does not mute it, and Android's Do Not Disturb lets alarms through by default. If you grant DND access, Remindly also gets through "Total silence" and then restores your setting. It can raise the alarm volume to a minimum level while ringing.
 - **No reminder is lost:**
