@@ -157,6 +157,20 @@ class MainActivity : FlutterFragmentActivity() {
                 startActivity(Intent.createChooser(send, "Share"))
                 result.success(null)
             }
+            "getTeam" -> result.success(Store.team(ctx).toString())
+            "saveTeam" -> { Store.saveTeam(ctx, JSONObject(call.arguments as String)); result.success(null) }
+            "teamSignIn" -> Team.signIn(this) { r ->
+                r.fold(
+                    { result.success(JSONObject().put("ok", true).put("account", it).toString()) },
+                    { result.success(JSONObject().put("ok", false).put("error", it.message ?: it.javaClass.simpleName).toString()) },
+                )
+            }
+            "teamSignOut" -> { Thread { Team.signOut(ctx); main.post { result.success(null) } }.start() }
+            "teamPull" -> Thread {
+                val out = runCatching { Team.pullYesterday(ctx).put("ok", true) }
+                    .getOrElse { JSONObject().put("ok", false).put("error", it.message ?: it.javaClass.simpleName) }
+                main.post { result.success(out.toString()) }
+            }.start()
             "takeLaunchAction" -> { result.success(launchAction); launchAction = null }
             "saveSettings" -> { Store.saveSettings(ctx, JSONObject(call.arguments as String)); result.success(null) }
             "getHistory" -> result.success(Store.history(ctx).toString())

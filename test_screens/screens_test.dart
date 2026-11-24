@@ -18,6 +18,7 @@ import 'package:remindly/screens/shell.dart';
 import 'package:remindly/sprint/review_screen.dart';
 import 'package:remindly/sprint/sprint_settings_screen.dart';
 import 'package:remindly/state.dart';
+import 'package:remindly/team/team_screen.dart';
 
 Future<void> loadFont(String family, List<String> files) async {
   final loader = FontLoader(family);
@@ -118,6 +119,41 @@ Map<String, dynamic> sprintJson({bool enabled = true}) {
 }
 
 bool sprintOn = false;
+Map<String, dynamic> teamJson = {};
+
+Map<String, dynamic> teamSample() => {
+      'enabled': true,
+      'tenantId': '00000000-0000-0000-0000-000000000000',
+      'clientId': '11111111-1111-1111-1111-111111111111',
+      'account': 'you@company.example',
+      'lastTestPull': null,
+      'lastDiagnostics': {
+        'toolsTotal': 25,
+        'toolsAllowed': ['ListChats', 'ListChatMessages', 'GetChatMessage', 'ListTeams', 'ListChannels', 'ListChannelMessages'],
+        'toolsBlocked': 19,
+        'model': 'Gemini Nano (on this phone)',
+      },
+      'summaries': [
+        {
+          'date': iso(ago(1)),
+          'generatedAt': at(const Duration(hours: -3)),
+          'highlights': [
+            'Platform team: Release 4.2 moved to Thursday after QA found an Android payment bug.',
+            'On-call: December rota published; you are on call 7–13 Dec.',
+            'Client demo prep: Demo went well; export feature wanted next sprint.',
+          ],
+          'actions': [
+            {'text': 'Ravi: Arjun, can you review the payment fix PR before stand-up?', 'source': 'Platform team'},
+          ],
+          'chats': [
+            {'name': 'Platform team', 'count': 82, 'points': ['Android payment regression found in QA.', 'Fix PR is up and needs two reviews.', 'Release moved to Thursday; main freezes Wednesday 6 PM.']},
+            {'name': 'Meera Iyer', 'count': 14, 'points': ['Needs sprint estimates by Tuesday 5 PM.']},
+            {'name': 'Client demo prep', 'count': 57, 'points': ['Client liked the new dashboard.', 'Asked for CSV and PDF export.']},
+          ],
+          'diagnostics': {'messages': 153, 'model': 'Gemini Nano (on this phone)'},
+        },
+      ],
+    };
 
 void mockNative({bool empty = false}) {
   TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(
@@ -127,6 +163,8 @@ void mockNative({bool empty = false}) {
       'getSettings' => jsonEncode(settings),
       'getSprint' => jsonEncode(sprintJson(enabled: sprintOn)),
       'saveSprint' => null,
+      'getTeam' => jsonEncode(teamJson),
+      'saveTeam' => null,
       'takeLaunchAction' => null,
       'getHistory' => jsonEncode(empty ? [] : history),
       'permissions' => jsonEncode(perms),
@@ -168,6 +206,26 @@ void main() {
   });
 
   testWidgets('home', (t) => shot(t, '1_home', const HomeScreen()));
+  testWidgets('team setup', (t) async {
+    teamJson = {'enabled': true};
+    await shot(t, 't1_team_setup', const TeamScreen());
+    teamJson = {};
+  });
+  testWidgets('team summary', (t) async {
+    teamJson = teamSample();
+    sprintOn = true;
+    await shot(t, 't2_team_summary', const Shell());
+    await t.tap(find.text('Team summary').last);
+    await t.pumpAndSettle();
+    await expectLater(find.byType(MaterialApp), matchesGoldenFile('goldens/t2_team_summary.png'));
+    sprintOn = false;
+    teamJson = {};
+  });
+  testWidgets('team settings', (t) async {
+    teamJson = teamSample();
+    await shot(t, 't3_team_settings', const TeamSettingsScreen());
+    teamJson = {};
+  });
   group('daily sprint', () {
     setUp(() => sprintOn = true);
     tearDown(() => sprintOn = false);

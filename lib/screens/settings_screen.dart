@@ -4,6 +4,7 @@ import '../main.dart' show AppColors, confirmDeviceAuth;
 import '../models.dart';
 import '../native.dart';
 import '../sprint/sprint_state.dart';
+import '../team/team_state.dart';
 import '../state.dart';
 import '../widgets.dart';
 import 'sound_picker_screen.dart';
@@ -213,6 +214,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               // ---- extras ----
               const GroupGap(title: 'Extras'),
               const _SprintCard(),
+              const _TeamCard(),
 
               // ---- lock ----
               const GroupGap(title: 'Privacy'),
@@ -288,26 +290,32 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   if (v != null) await state.updateSettings({'themeMode': v});
                 },
               ),
-              if (SprintState.instance.enabled)
+              if (SprintState.instance.enabled || TeamState.instance.enabled)
                 OptionRow(
                   icon: Icons.open_in_new_rounded,
                   title: 'Open app on',
                   value: switch (state.setting('startTab', 'reminders')) {
                     'sprint' => 'Daily Sprint',
+                    'team' => 'Team summary',
                     'last' => 'The menu I used last',
                     _ => 'Reminders',
                   },
                   onTap: () async {
                     final v = await chooseOne<String>(context,
                         title: 'Open app on',
-                        options: const [('reminders', 'Reminders'), ('sprint', 'Daily Sprint'), ('last', 'The menu I used last')],
+                        options: [
+                          ('reminders', 'Reminders'),
+                          if (SprintState.instance.enabled) ('sprint', 'Daily Sprint'),
+                          if (TeamState.instance.enabled) ('team', 'Team summary'),
+                          ('last', 'The menu I used last'),
+                        ],
                         current: state.setting('startTab', 'reminders'));
                     if (v != null) await state.updateSettings({'startTab': v});
                   },
                 ),
               _switch(Icons.format_size_rounded, 'Bigger text', 'Easier to read', 'largeText', false),
               const SizedBox(height: 24),
-              Center(child: Text('DayMate 1.7', style: TextStyle(fontSize: 13, color: grey))),
+              Center(child: Text('DayMate 1.8', style: TextStyle(fontSize: 13, color: grey))),
             ],
           ),
         );
@@ -394,6 +402,75 @@ class _SprintCard extends StatelessWidget {
                 },
                 icon: const Icon(Icons.add_rounded),
                 label: const Text('Add Daily Sprint'),
+              ),
+          ]),
+        );
+      },
+    );
+  }
+}
+
+/// "Add Team summary": daily read-only summary of Microsoft Teams, made on the phone.
+class _TeamCard extends StatelessWidget {
+  const _TeamCard();
+
+  @override
+  Widget build(BuildContext context) {
+    final team = TeamState.instance;
+    final theme = Theme.of(context);
+    final grey = theme.colorScheme.onSurfaceVariant;
+    final light = theme.brightness == Brightness.light;
+    return ListenableBuilder(
+      listenable: team,
+      builder: (context, _) {
+        final on = team.enabled;
+        return Container(
+          margin: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: on ? AppColors.accent.withValues(alpha: 0.06) : null,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: on ? AppColors.accent : theme.colorScheme.outlineVariant, width: 1.5),
+          ),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(color: const Color(0xFFD6409F).withValues(alpha: 0.13), shape: BoxShape.circle),
+                child: const Icon(Icons.forum_outlined, color: Color(0xFFD6409F), size: 22),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  const Text('Team summary', style: TextStyle(fontSize: 15.5, fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 2),
+                  Text('A short summary of yesterday in your Microsoft Teams chats. Read-only; the AI runs on this phone.',
+                      style: TextStyle(fontSize: 13, color: grey, height: 1.35)),
+                ]),
+              ),
+            ]),
+            const SizedBox(height: 12),
+            if (on)
+              Row(children: [
+                Icon(Icons.check_rounded, color: light ? AppColors.green : AppColors.accent, size: 20),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text('Added – see the bottom menu',
+                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: light ? AppColors.green : AppColors.accent)),
+                ),
+                OutlinedButton(
+                  style: OutlinedButton.styleFrom(foregroundColor: AppColors.red, minimumSize: const Size(0, 40)),
+                  onPressed: () => team.setEnabled(false),
+                  child: const Text('Remove'),
+                ),
+              ])
+            else
+              FilledButton.icon(
+                style: FilledButton.styleFrom(minimumSize: const Size(0, 42)),
+                onPressed: () => team.setEnabled(true),
+                icon: const Icon(Icons.add_rounded),
+                label: const Text('Add Team summary'),
               ),
           ]),
         );

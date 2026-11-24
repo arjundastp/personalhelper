@@ -6,6 +6,7 @@ import '../main.dart' show AppColors;
 import '../models.dart';
 import '../native.dart';
 import '../sprint/sprint_state.dart';
+import '../team/team_state.dart';
 import '../state.dart';
 import '../widgets.dart';
 import 'edit_screen.dart';
@@ -172,7 +173,7 @@ class _HomeScreenState extends State<HomeScreen> {
         return Scaffold(
           appBar: AppBar(
             // With the bottom menu each tab names itself; alone, the app name shows.
-            title: Text(SprintState.instance.enabled ? 'Reminders' : 'DayMate'),
+            title: Text(SprintState.instance.enabled || TeamState.instance.enabled ? 'Reminders' : 'DayMate'),
             actions: [
               PopupMenuButton<String>(
                 tooltip: 'More',

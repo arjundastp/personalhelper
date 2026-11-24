@@ -55,6 +55,7 @@ android {
             // Smaller APK: strip unused code and resources.
             isMinifyEnabled = true
             isShrinkResources = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }
 }
@@ -71,6 +72,12 @@ flutter {
 
 dependencies {
     implementation("androidx.appcompat:appcompat:1.7.1")
+    // Team summary: Microsoft sign-in (MSAL) and Gemini Nano summarisation on the phone (ML Kit GenAI).
+    implementation("com.microsoft.identity.client:msal:8.7.0") {
+        // Only for dual-screen devices; hosted outside Maven Central.
+        exclude(group = "com.microsoft.device.display")
+    }
+    implementation("com.google.mlkit:genai-summarization:1.0.0-beta1")
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.json:json:20250517")
 }

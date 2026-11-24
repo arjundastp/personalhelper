@@ -129,6 +129,18 @@ object Store {
         true
     }
 
+    // ---------------- team summary ----------------
+
+    /** Team summary settings + saved summaries (written by the Flutter side). */
+    fun team(ctx: Context): JSONObject = synchronized(lock) {
+        JSONObject((root(ctx).optJSONObject("team") ?: JSONObject()).toString())
+    }
+
+    fun saveTeam(ctx: Context, data: JSONObject) = synchronized(lock) {
+        root(ctx).put("team", data)
+        persist(ctx)
+    }
+
     // ---------------- daily sprint ----------------
 
     /** The Daily Sprint data (settings, tasks, parked list), written by the Flutter side. */

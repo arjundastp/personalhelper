@@ -5,6 +5,7 @@ import 'package:material_ui/material_ui.dart';
 import 'models.dart';
 import 'native.dart';
 import 'sprint/sprint_state.dart';
+import 'team/team_state.dart';
 
 /// App-wide state. The Android side is the source of truth; this mirrors it for the UI.
 class AppState extends ChangeNotifier {
@@ -52,6 +53,7 @@ class AppState extends ChangeNotifier {
       history = results[2] as List<HistoryEntry>;
       permissions = results[3] as Map<String, bool>;
       await SprintState.instance.load();
+      await TeamState.instance.load();
       pendingOpen = await Native.takeLaunchAction() ?? pendingOpen;
     } catch (_) {}
     loaded = true;
