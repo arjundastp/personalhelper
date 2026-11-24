@@ -4,13 +4,13 @@ import 'sprint_state.dart';
 /// How one day's tasks ended.
 class DayCounts {
   final DateTime day;
-  final int done, notDone, paused, open;
-  const DayCounts(this.day, {this.done = 0, this.notDone = 0, this.paused = 0, this.open = 0});
+  final int done, partial, notDone, paused, open;
+  const DayCounts(this.day, {this.done = 0, this.partial = 0, this.notDone = 0, this.paused = 0, this.open = 0});
 
-  int get total => done + notDone + paused + open;
+  int get total => done + partial + notDone + paused + open;
 
-  /// Share done, or null when nothing was planned.
-  double? get rate => total == 0 ? null : done / total;
+  /// Share done (a partly done task counts as half), or null when nothing was planned.
+  double? get rate => total == 0 ? null : (done + partial * 0.5) / total;
 }
 
 /// Working days and time off in a date range (only days up to today count).
@@ -48,11 +48,13 @@ class SprintStats {
   SprintStats(this.s, {this.days = 7, DateTime? now}) : today = dateOnly(now ?? s.now());
 
   DayCounts countsFor(DateTime day) {
-    var done = 0, not = 0, paused = 0, open = 0;
+    var done = 0, partial = 0, not = 0, paused = 0, open = 0;
     for (final t in s.tasksFor(isoDate(day))) {
       switch (t.status) {
         case TaskStatus.done:
           done++;
+        case TaskStatus.partial:
+          partial++;
         case TaskStatus.notDone:
           not++;
         case TaskStatus.paused:
@@ -61,7 +63,7 @@ class SprintStats {
           open++;
       }
     }
-    return DayCounts(day, done: done, notDone: not, paused: paused, open: open);
+    return DayCounts(day, done: done, partial: partial, notDone: not, paused: paused, open: open);
   }
 
   /// One entry per calendar day in the window, oldest first.
@@ -70,14 +72,15 @@ class SprintStats {
       ];
 
   DayCounts _sum(Iterable<DayCounts> list, DateTime day) {
-    var d = 0, n = 0, p = 0, o = 0;
+    var d = 0, h = 0, n = 0, p = 0, o = 0;
     for (final c in list) {
       d += c.done;
+      h += c.partial;
       n += c.notDone;
       p += c.paused;
       o += c.open;
     }
-    return DayCounts(day, done: d, notDone: n, paused: p, open: o);
+    return DayCounts(day, done: d, partial: h, notDone: n, paused: p, open: o);
   }
 
   DayCounts get totals => _sum(daily, today);
@@ -102,10 +105,10 @@ class SprintStats {
 
   /// Completion by weekday (1 = Mon .. 7 = Sun) over the last 8 weeks; null where nothing planned.
   Map<int, double?> get weekdayRates {
-    final done = List.filled(8, 0), total = List.filled(8, 0);
+    final done = List.filled(8, 0.0), total = List.filled(8, 0);
     for (var i = 0; i < 56; i++) {
       final c = countsFor(today.subtract(Duration(days: i)));
-      done[c.day.weekday] += c.done;
+      done[c.day.weekday] += c.done + c.partial * 0.5;
       total[c.day.weekday] += c.total;
     }
     return {for (var w = 1; w <= 7; w++) w: total[w] == 0 ? null : done[w] / total[w]};

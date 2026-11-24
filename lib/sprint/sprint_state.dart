@@ -12,6 +12,7 @@ abstract class TaskStatus {
   static const done = 'done';
   static const notDone = 'not';
   static const paused = 'paused';
+  static const partial = 'partial'; // partly done; the rest can continue on the next work day
 }
 
 class SprintTask {
@@ -22,11 +23,21 @@ class SprintTask {
   String? from; // "Moved from Mon" / "From parked" / "From Mon"
   int? movedId; // copy created on the next work day when "Not done" + move
   int? parkedId; // entry created in the parked list when "Paused"
+  String? note; // free text, e.g. what was finished and what is left
 
-  SprintTask({required this.id, required this.text, required this.date, this.status = TaskStatus.open, this.from, this.movedId, this.parkedId});
+  SprintTask({
+    required this.id,
+    required this.text,
+    required this.date,
+    this.status = TaskStatus.open,
+    this.from,
+    this.movedId,
+    this.parkedId,
+    this.note,
+  });
 
   Map<String, dynamic> toJson() =>
-      {'id': id, 'text': text, 'date': date, 'status': status, 'from': from, 'movedId': movedId, 'parkedId': parkedId};
+      {'id': id, 'text': text, 'date': date, 'status': status, 'from': from, 'movedId': movedId, 'parkedId': parkedId, 'note': note};
 
   factory SprintTask.fromJson(Map<String, dynamic> j) => SprintTask(
         id: (j['id'] as num).toInt(),
@@ -36,6 +47,7 @@ class SprintTask {
         from: j['from'] as String?,
         movedId: (j['movedId'] as num?)?.toInt(),
         parkedId: (j['parkedId'] as num?)?.toInt(),
+        note: j['note'] as String?,
       );
 }
 
@@ -170,8 +182,9 @@ abstract class LeaveType {
 /// Answer given on the review screen for one task.
 class ReviewAnswer {
   final String status;
-  final bool move;
-  const ReviewAnswer(this.status, {this.move = true});
+  final bool move; // Not done / Partly done: continue on the next work day
+  final String? note; // null = keep the task's current note
+  const ReviewAnswer(this.status, {this.move = true, this.note});
 }
 
 /// Daily Sprint: the optional work-day planner. Everything is stored on the phone, in the same
@@ -418,6 +431,24 @@ class SprintState extends ChangeNotifier {
     await save();
   }
 
+  /// Sets or clears (empty text) the task's note.
+  Future<void> setNote(int id, String? text) async {
+    final t = byId(id);
+    if (t == null) return;
+    t.note = _cleanNote(text);
+    await save();
+  }
+
+  /// Marks a task partly done with an optional note; [move] continues it on the next work day.
+  Future<void> markPartial(int id, {String? note, bool move = true}) async {
+    final t = byId(id);
+    if (t == null) return;
+    _apply(t, ReviewAnswer(TaskStatus.partial, move: move, note: note ?? ''));
+    await save();
+  }
+
+  static String? _cleanNote(String? text) => (text == null || text.trim().isEmpty) ? null : text.trim();
+
   Future<void> rename(int id, String text) async {
     final t = byId(id);
     if (t == null || text.trim().isEmpty) return;
@@ -454,9 +485,17 @@ class SprintState extends ChangeNotifier {
   void _apply(SprintTask t, ReviewAnswer a) {
     _undoSideEffects(t);
     t.status = a.status;
-    if (a.status == TaskStatus.notDone && a.move) {
+    if (a.note != null) t.note = _cleanNote(a.note);
+    if ((a.status == TaskStatus.notDone || a.status == TaskStatus.partial) && a.move) {
       final next = isoDate(nextWorkday(DateTime.parse(t.date)));
-      final copy = SprintTask(id: _newId(), text: t.text, date: next, from: 'Moved from ${_dayName(t.date)}');
+      final partial = a.status == TaskStatus.partial;
+      final copy = SprintTask(
+        id: _newId(),
+        text: t.text,
+        date: next,
+        from: '${partial ? 'Continued' : 'Moved'} from ${_dayName(t.date)}',
+        note: partial ? t.note : null, // where you left off
+      );
       tasks.add(copy);
       t.movedId = copy.id;
     } else if (a.status == TaskStatus.paused) {

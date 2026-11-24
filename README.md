@@ -4,7 +4,7 @@
 
 ## Download
 
-**[⬇ Download DayMate for Android](https://github.com/arjundastp/personalhelper/raw/main/downloads/DayMate.apk)** (version 1.10.2, about 20 MB, Android 8.0 or newer)
+**[⬇ Download DayMate for Android](https://github.com/arjundastp/personalhelper/raw/main/downloads/DayMate.apk)** (version 1.11, about 20 MB, Android 8.0 or newer)
 
 - Most phones: [`DayMate.apk`](https://github.com/arjundastp/personalhelper/raw/main/downloads/DayMate.apk)
 - Older or very low-cost phones (32-bit): [`DayMate-older-phones.apk`](https://github.com/arjundastp/personalhelper/raw/main/downloads/DayMate-older-phones.apk)
@@ -21,8 +21,10 @@ On first start, tap **Allow** so reminders can ring and show full screen.
 - **Sound on/off per reminder:** turn the sound off for a silent reminder that only shows the full-screen alert (and vibrates if vibration is on).
 - **Daily Sprint (optional, Settings → Extras → Add Daily Sprint):** a work-day planner on its own bottom tab.
   Add small tasks for the day in a message-style box. A morning nudge comes at 10:30 AM and a full-screen
-  "How did today go?" alert at 6:30 PM (both editable, work days only). Mark each task Done, Not done
+  "How did today go?" alert at 6:30 PM (both editable, work days only). Mark each task Done, Partly done
+  (with a note on what is left; the rest can continue on the next work day, labelled "Continued from …"), Not done
   (optionally moved to the next work day, labelled "Moved from …") or Paused (goes to the Parked tasks list).
+  Any task can have a note; a partly done task counts as half in the completion %.
   Mark days as leave, half-day leave or public holiday (also in advance); reports show working days,
   leave taken, holidays and days reported for the period, the month and the year.
   **Goals:** long-term goals with a progress bar, target date and dated progress notes.

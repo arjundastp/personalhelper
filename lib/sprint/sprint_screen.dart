@@ -16,6 +16,7 @@ import 'sprint_state.dart';
 
 const sprintBlue = Color(0xFF3E63DD);
 const notDoneColor = Color(0xFFC2410C);
+const partialColor = Color(0xFF0F8A6C); // labels for "Partly done" (text-safe shade of the done green)
 const leaveColor = Color(0xFF8E4EC6);
 
 /// The "Daily Sprint" tab: Today · Insights · Parked · History across the top.
@@ -131,6 +132,14 @@ class _TodayViewState extends State<TodayView> with AutomaticKeepAliveClientMixi
             child: Text(t.text, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600)),
           ),
           OptionRow(icon: Icons.edit_outlined, title: 'Change text', onTap: () => Navigator.pop(c, 'edit')),
+          if (t.status != TaskStatus.partial && t.status != TaskStatus.paused)
+            OptionRow(icon: Icons.timelapse_rounded, title: 'Partly done…', value: 'Add what is done and what is left', onTap: () => Navigator.pop(c, 'partial')),
+          OptionRow(
+            icon: Icons.sticky_note_2_outlined,
+            title: t.note == null ? 'Add note' : 'Edit note',
+            value: t.note,
+            onTap: () => Navigator.pop(c, 'note'),
+          ),
           if (t.status == TaskStatus.done)
             OptionRow(icon: Icons.emoji_events_outlined, title: 'Add to achievements', onTap: () => Navigator.pop(c, 'win')),
           if (t.status != TaskStatus.paused)
@@ -145,6 +154,11 @@ class _TodayViewState extends State<TodayView> with AutomaticKeepAliveClientMixi
       case 'edit':
         final text = await editTextDialog(context, title: 'Change task', initial: t.text);
         if (text != null) await sprint.rename(t.id, text);
+      case 'partial':
+        await _partialSheet(t);
+      case 'note':
+        final text = await editTextDialog(context, title: 'Note', initial: t.note ?? '', multiline: true, hint: 'Anything to remember about this task');
+        if (text != null) await sprint.setNote(t.id, text);
       case 'win':
         await showAchievementSheet(context, title: t.text, date: t.date);
       case 'pause':
@@ -154,6 +168,61 @@ class _TodayViewState extends State<TodayView> with AutomaticKeepAliveClientMixi
         await sprint.delete(t.id);
         _toast('Task deleted');
     }
+  }
+
+  /// "Partly done": a note on what is finished / left, and whether to continue the rest on the next work day.
+  Future<void> _partialSheet(SprintTask t) async {
+    final note = TextEditingController(text: t.note ?? '');
+    var move = true;
+    final next = sprint.nextWorkday(DateTime.parse(t.date));
+    final nextLabel = fmtDay(next) == 'Tomorrow' ? 'tomorrow' : DateFormat('EEEE').format(next);
+    final ok = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      builder: (c) => StatefulBuilder(
+        builder: (c, set) => Padding(
+          padding: EdgeInsets.fromLTRB(20, 0, 20, 16 + MediaQuery.of(c).viewInsets.bottom),
+          child: SafeArea(
+            child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const Text('Partly done', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
+              const SizedBox(height: 2),
+              Text(t.text, style: TextStyle(fontSize: 14, color: Theme.of(c).colorScheme.onSurfaceVariant)),
+              const SizedBox(height: 10),
+              TextField(
+                controller: note,
+                autofocus: true,
+                minLines: 2,
+                maxLines: 5,
+                textCapitalization: TextCapitalization.sentences,
+                style: const TextStyle(fontSize: 15),
+                decoration: const InputDecoration(hintText: 'What is done, what is left?', border: OutlineInputBorder()),
+              ),
+              CheckboxListTile(
+                contentPadding: EdgeInsets.zero,
+                controlAffinity: ListTileControlAffinity.leading,
+                activeColor: AppColors.accent,
+                value: move,
+                onChanged: (v) => set(() => move = v ?? false),
+                title: Text('Continue the rest $nextLabel', style: const TextStyle(fontSize: 14.5)),
+              ),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  style: FilledButton.styleFrom(minimumSize: const Size(0, 46)),
+                  onPressed: () => Navigator.pop(c, true),
+                  child: const Text('Save'),
+                ),
+              ),
+            ]),
+          ),
+        ),
+      ),
+    );
+    if (ok == true) {
+      await sprint.markPartial(t.id, note: note.text, move: move);
+      _toast(move ? 'Partly done – the rest is on $nextLabel\'s plan' : 'Marked partly done');
+    }
+    note.dispose();
   }
 
   void _toast(String text) {
@@ -242,6 +311,7 @@ class _TodayViewState extends State<TodayView> with AutomaticKeepAliveClientMixi
       builder: (context, _) {
         final list = sprint.tasksFor(dayKey);
         final done = list.where((t) => t.status == TaskStatus.done).length;
+        final partial = list.where((t) => t.status == TaskStatus.partial).length;
         final open = list.where((t) => t.status == TaskStatus.open).length;
         final carryDay = isToday ? sprint.unansweredDay : null;
         final carryTasks = carryDay == null ? const <SprintTask>[] : sprint.tasksFor(carryDay).where((t) => t.status == TaskStatus.open).toList();
@@ -348,7 +418,14 @@ class _TodayViewState extends State<TodayView> with AutomaticKeepAliveClientMixi
                       Row(children: [
                         Text('$done of ${list.length} done', style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w600)),
                         const SizedBox(width: 8),
-                        Text('${(done * 100 / list.length).round()}%', style: TextStyle(fontSize: 13, color: grey)),
+                        Flexible(
+                          child: Text(
+                            '${((done + partial * 0.5) * 100 / list.length).round()}%${partial > 0 ? ' · $partial partly' : ''}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(fontSize: 13, color: grey),
+                          ),
+                        ),
                         const Spacer(),
                         if (isPast || isToday)
                           TextButton(
@@ -365,7 +442,7 @@ class _TodayViewState extends State<TodayView> with AutomaticKeepAliveClientMixi
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(3),
                           child: LinearProgressIndicator(
-                            value: done / list.length,
+                            value: (done + partial * 0.5) / list.length,
                             minHeight: 6,
                             color: AppColors.accent,
                             backgroundColor: grey.withValues(alpha: 0.2),
@@ -477,6 +554,7 @@ class TaskRow extends StatelessWidget {
     final t = task;
     final done = t.status == TaskStatus.done;
     final (String? label, Color labelColor) = switch (t.status) {
+      TaskStatus.partial => ('Partly done', partialColor),
       TaskStatus.notDone => ('Not done', notDoneColor),
       TaskStatus.paused => ('Paused · in Parked', sprintBlue),
       _ => (t.from, notDoneColor),
@@ -531,6 +609,19 @@ class TaskRow extends StatelessWidget {
                   Padding(
                     padding: const EdgeInsets.only(top: 1),
                     child: Text(label, style: TextStyle(fontSize: 12, color: labelColor, fontWeight: FontWeight.w500)),
+                  ),
+                if (t.note != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Padding(
+                        padding: const EdgeInsets.only(top: 1, right: 4),
+                        child: Icon(Icons.sticky_note_2_outlined, size: 13, color: grey),
+                      ),
+                      Expanded(
+                        child: Text(t.note!, maxLines: 3, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12.5, color: grey, height: 1.3)),
+                      ),
+                    ]),
                   ),
               ]),
             ),
@@ -603,7 +694,7 @@ class SprintComposer extends StatelessWidget {
 }
 
 /// Small dialog to edit a line of text. Returns null when cancelled.
-Future<String?> editTextDialog(BuildContext context, {required String title, required String initial}) {
+Future<String?> editTextDialog(BuildContext context, {required String title, required String initial, bool multiline = false, String? hint}) {
   final ctrl = TextEditingController(text: initial);
   return showDialog<String>(
     context: context,
@@ -612,9 +703,12 @@ Future<String?> editTextDialog(BuildContext context, {required String title, req
       content: TextField(
         controller: ctrl,
         autofocus: true,
+        minLines: multiline ? 2 : 1,
+        maxLines: multiline ? 5 : 1,
         textCapitalization: TextCapitalization.sentences,
         style: const TextStyle(fontSize: 15.5),
-        onSubmitted: (v) => Navigator.pop(c, v),
+        decoration: InputDecoration(hintText: hint),
+        onSubmitted: multiline ? null : (v) => Navigator.pop(c, v),
       ),
       actions: [
         TextButton(onPressed: () => Navigator.pop(c), child: const Text('Cancel')),

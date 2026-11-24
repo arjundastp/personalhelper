@@ -61,20 +61,20 @@ DateTime ago(int days) => DateTime(now.year, now.month, now.day).subtract(Durati
 
 Map<String, dynamic> sprintJson({bool enabled = true}) {
   var id = 1;
-  Map<String, dynamic> t(String text, DateTime d, String status, {String? from, int? movedId}) =>
-      {'id': id++, 'text': text, 'date': iso(d), 'status': status, 'from': from, 'movedId': movedId};
+  Map<String, dynamic> t(String text, DateTime d, String status, {String? from, int? movedId, String? note}) =>
+      {'id': id++, 'text': text, 'date': iso(d), 'status': status, 'from': from, 'movedId': movedId, 'note': note};
   return {
     'enabled': enabled, 'morningOn': true, 'morningMin': 630, 'eveningOn': true, 'eveningMin': 1110,
     'workdays': [1, 2, 3, 4, 5, 6, 7], 'soundOn': true, 'nextId': 100,
     'tasks': [
       t('Reply to client emails', now, 'done'),
-      t('Review Ravi’s pull request', now, 'done'),
+      t('Review Ravi’s pull request', now, 'partial', note: 'API changes reviewed; UI part left'),
       t('Prepare slides for 3 PM meeting', now, 'open'),
       t('Fix login bug', now, 'open', from: 'Moved from ${['Mon','Tue','Wed','Thu','Fri','Sat','Sun'][ago(1).weekday - 1]}'),
       t('Send weekly report', now, 'open'),
       t('Fix login bug', ago(1), 'not', movedId: 4),
       t('Update test cases', ago(1), 'done'),
-      t('Team sync notes', ago(1), 'done'),
+      t('Team sync notes', ago(1), 'partial', note: 'Shared action items; minutes still to write'),
       t('Plan sprint backlog', ago(1), 'done'),
       t('Write release notes', ago(2), 'done'),
       t('Clean up old test data', ago(2), 'paused'),

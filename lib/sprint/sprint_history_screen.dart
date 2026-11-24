@@ -74,6 +74,7 @@ class _DayRow extends StatelessWidget {
     final c = SprintColors.of(context);
     final list = sprint.tasksFor(day);
     final done = list.where((t) => t.status == TaskStatus.done).length;
+    final partial = list.where((t) => t.status == TaskStatus.partial).length;
     final not = list.where((t) => t.status == TaskStatus.notDone).length;
     final paused = list.where((t) => t.status == TaskStatus.paused).length;
     final open = list.where((t) => t.status == TaskStatus.open).length;
@@ -81,13 +82,14 @@ class _DayRow extends StatelessWidget {
     final parts = <String>[
       if (leave != null) leave.note == null ? leave.label : '${leave.label} (${leave.note})',
       if (list.isNotEmpty) done == list.length ? 'All done' : '$done done',
+      if (partial > 0) '$partial partly done',
       if (not > 0) '$not not done',
       if (paused > 0) '$paused paused',
       if (open > 0) '$open not updated',
     ];
     final d = DateTime.parse(day);
     final rel = fmtDay(d);
-    final rate = list.isEmpty ? 0.0 : done / list.length;
+    final rate = list.isEmpty ? 0.0 : (done + partial * 0.5) / list.length;
     return InkWell(
       onTap: list.isEmpty ? null : () => _showDay(context, day),
       child: Padding(
@@ -184,24 +186,33 @@ class _DayRow extends StatelessWidget {
                           leading: Icon(
                             switch (t.status) {
                               TaskStatus.done => Icons.check_circle_rounded,
+                              TaskStatus.partial => Icons.timelapse_rounded,
                               TaskStatus.notDone => Icons.cancel_rounded,
                               TaskStatus.paused => Icons.pause_circle_rounded,
                               _ => Icons.radio_button_unchecked_rounded,
                             },
                             color: switch (t.status) {
                               TaskStatus.done => col.done,
+                              TaskStatus.partial => col.partial,
                               TaskStatus.notDone => col.notDone,
                               TaskStatus.paused => col.paused,
                               _ => col.muted,
                             },
                           ),
                           title: Text(t.text, style: const TextStyle(fontSize: 15)),
-                          subtitle: Text(switch (t.status) {
-                            TaskStatus.done => 'Done',
-                            TaskStatus.notDone => t.movedId != null ? 'Not done · moved to next day' : 'Not done',
-                            TaskStatus.paused => 'Paused',
-                            _ => 'Not updated',
-                          }, style: const TextStyle(fontSize: 12.5)),
+                          subtitle: Text(
+                            [
+                              switch (t.status) {
+                                TaskStatus.done => 'Done',
+                                TaskStatus.partial => t.movedId != null ? 'Partly done · continued next day' : 'Partly done',
+                                TaskStatus.notDone => t.movedId != null ? 'Not done · moved to next day' : 'Not done',
+                                TaskStatus.paused => 'Paused',
+                                _ => 'Not updated',
+                              },
+                              if (t.note != null) 'Note: ${t.note}',
+                            ].join('\n'),
+                            style: const TextStyle(fontSize: 12.5),
+                          ),
                         ),
                     ],
                   ),

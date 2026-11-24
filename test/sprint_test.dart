@@ -184,4 +184,54 @@ void main() {
     final a = SprintStats(s).attendance(DateTime(2026), DateTime(2026, 11, 24));
     expect(a.workingDays, 1);
   });
+
+  test('partly done keeps a note and continues on the next work day with that note', () async {
+    final s = fresh();
+    await s.add('2026-11-24', 'Write release notes');
+    final id = s.tasks.single.id;
+    await s.review('2026-11-24', {id: const ReviewAnswer(TaskStatus.partial, note: '  Android part done; iOS left ')});
+    final t = s.byId(id)!;
+    expect(t.status, TaskStatus.partial);
+    expect(t.note, 'Android part done; iOS left');
+    final copy = s.tasksFor('2026-11-25').single;
+    expect(copy.from, 'Continued from Tue');
+    expect(copy.note, 'Android part done; iOS left');
+    expect(copy.status, TaskStatus.open);
+  });
+
+  test('marking a partly done task done removes the untouched continuation', () async {
+    final s = fresh();
+    await s.add('2026-11-24', 'A');
+    final id = s.tasks.single.id;
+    await s.markPartial(id, note: 'half', move: true);
+    expect(s.tasks.length, 2);
+    await s.toggleDone(id);
+    expect(s.byId(id)!.status, TaskStatus.done);
+    expect(s.tasks.length, 1);
+    expect(s.byId(id)!.note, 'half'); // the note stays
+  });
+
+  test('notes: set, clear, keep when the review sends none, survive json', () async {
+    final s = fresh();
+    await s.add('2026-11-24', 'A');
+    final id = s.tasks.single.id;
+    await s.setNote(id, 'Waiting for Ravi');
+    await s.review('2026-11-24', {id: const ReviewAnswer(TaskStatus.done)});
+    expect(s.byId(id)!.note, 'Waiting for Ravi');
+    final copy = fresh()..fromJson(s.toJson());
+    expect(copy.byId(id)!.note, 'Waiting for Ravi');
+    await s.setNote(id, '   ');
+    expect(s.byId(id)!.note, isNull);
+  });
+
+  test('a partly done task counts as half in completion', () async {
+    final s = fresh();
+    await s.add('2026-11-24', 'A');
+    await s.add('2026-11-24', 'B');
+    final ids = s.tasks.map((t) => t.id).toList();
+    await s.review('2026-11-24', {ids[0]: const ReviewAnswer(TaskStatus.done), ids[1]: const ReviewAnswer(TaskStatus.partial, move: false)});
+    final c = SprintStats(s).countsFor(DateTime(2026, 11, 24));
+    expect(c.partial, 1);
+    expect(c.rate, 0.75);
+  });
 }

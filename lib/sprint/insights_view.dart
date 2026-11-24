@@ -36,6 +36,9 @@ class SprintColors {
 
   Color get leave => const Color(0xFFB39DDB);
 
+  /// Partly done: a lighter shade of "done", so it reads as half-way there.
+  Color get partial => done == const Color(0xFF00A884) ? const Color(0xFF8ED8C0) : const Color(0xFF16705A);
+
   Color heatFor(double? rate) {
     if (rate == null) return heatNone;
     if (rate < 0.25) return heat[0];
@@ -308,6 +311,7 @@ class _DailyChartState extends State<_DailyChart> {
       if (d.total == 0) return '${fmtDay(d.day)} · nothing planned';
       final parts = [
         '${d.done} done',
+        if (d.partial > 0) '${d.partial} partly done',
         if (d.notDone > 0) '${d.notDone} not done',
         if (d.paused > 0) '${d.paused} paused',
         if (d.open > 0) '${d.open} not updated',
@@ -316,7 +320,7 @@ class _DailyChartState extends State<_DailyChart> {
     }
 
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      _Legend([(c.done, 'Done'), (c.notDone, 'Not done'), (c.paused, 'Paused'), (c.track, 'Not updated')]),
+      _Legend([(c.done, 'Done'), (c.partial, 'Partly'), (c.notDone, 'Not done'), (c.paused, 'Paused'), (c.track, 'Not updated')]),
       const SizedBox(height: 10),
       LayoutBuilder(builder: (context, box) {
         const height = 132.0;
@@ -400,7 +404,7 @@ class _DailyPainter extends CustomPainter {
       if (d.total > 0) {
         final unit = chartHeight / top;
         var y = chartHeight;
-        final segs = [(d.done, colors.done), (d.notDone, colors.notDone), (d.paused, colors.paused), (d.open, colors.track)]
+        final segs = [(d.done, colors.done), (d.partial, colors.partial), (d.notDone, colors.notDone), (d.paused, colors.paused), (d.open, colors.track)]
             .where((s) => s.$1 > 0)
             .toList();
         for (var k = 0; k < segs.length; k++) {
@@ -460,6 +464,7 @@ class _EndedBar extends StatelessWidget {
     if (t.total == 0) return Text('Nothing planned in this period.', style: TextStyle(fontSize: 13, color: c.muted));
     final parts = [
       (t.done, c.done, 'Done'),
+      (t.partial, c.partial, 'Partly done'),
       (t.notDone, c.notDone, 'Not done'),
       (t.paused, c.paused, 'Paused'),
       (t.open, c.track, 'Not updated'),
@@ -592,7 +597,7 @@ class _HeatmapState extends State<_Heatmap> {
         const SizedBox(height: 8),
         Text(
           '${fmtDay(selected!.day)} · '
-          '${selected!.total == 0 ? 'nothing planned' : '${selected!.done} of ${selected!.total} done (${(selected!.rate! * 100).round()}%)'}',
+          '${selected!.total == 0 ? 'nothing planned' : '${selected!.done} of ${selected!.total} done${selected!.partial > 0 ? ', ${selected!.partial} partly' : ''} (${(selected!.rate! * 100).round()}%)'}',
           style: TextStyle(fontSize: 12.5, color: c.ink, fontWeight: FontWeight.w500),
         ),
       ],

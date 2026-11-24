@@ -3,11 +3,11 @@ import 'package:material_ui/material_ui.dart';
 
 import '../format.dart' show fmtDay;
 import '../main.dart' show AppColors;
-import 'sprint_screen.dart' show sprintBlue, notDoneColor;
+import 'sprint_screen.dart' show sprintBlue, notDoneColor, partialColor;
 import 'sprint_state.dart';
 
-/// "How did today go?": one answer per task: Done, Not done (optionally moved to the next
-/// work day) or Paused (goes to the Parked tasks list).
+/// "How did today go?": one answer per task: Done, Partly done or Not done (both optionally
+/// continued on the next work day) or Paused (goes to the Parked tasks list). Any task can get a note.
 class ReviewScreen extends StatefulWidget {
   final String date;
   const ReviewScreen({super.key, required this.date});
@@ -23,10 +23,25 @@ class _ReviewScreenState extends State<ReviewScreen> {
     for (final t in tasks) t.id: t.status == TaskStatus.open ? null : t.status,
   };
   late final Map<int, bool> move = {
-    // A "Not done" answered earlier without moving keeps that choice.
-    for (final t in tasks) t.id: t.status == TaskStatus.notDone ? t.movedId != null : true,
+    // A "Not done" / "Partly done" answered earlier without moving keeps that choice.
+    for (final t in tasks) t.id: (t.status == TaskStatus.notDone || t.status == TaskStatus.partial) ? t.movedId != null : true,
   };
+  late final Map<int, TextEditingController> notes = {for (final t in tasks) t.id: TextEditingController(text: t.note ?? '')};
+  late final Set<int> noteOpen = {for (final t in tasks) if (t.note != null) t.id};
   bool saved = false;
+
+  @override
+  void dispose() {
+    for (final c in notes.values) {
+      c.dispose();
+    }
+    super.dispose();
+  }
+
+  void _pick(SprintTask t, String s) => setState(() {
+    status[t.id] = s;
+    if (s == TaskStatus.partial) noteOpen.add(t.id);
+  });
 
   DateTime get date => DateTime.parse(widget.date);
 
@@ -39,7 +54,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
   Future<void> _save() async {
     await sprint.review(widget.date, {
       for (final t in tasks)
-        if (status[t.id] != null) t.id: ReviewAnswer(status[t.id]!, move: move[t.id] ?? true),
+        if (status[t.id] != null) t.id: ReviewAnswer(status[t.id]!, move: move[t.id] ?? true, note: notes[t.id]!.text),
     });
     setState(() => saved = true);
   }
@@ -75,7 +90,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
                       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                         Text(DateFormat('EEEE, d MMMM').format(date), style: TextStyle(fontSize: 14, color: grey)),
                         const SizedBox(height: 4),
-                        Text('Choose Done, Not done or Paused for each task.', style: TextStyle(fontSize: 13, color: grey)),
+                        Text('Choose an answer for each task. Add a note if you like.', style: TextStyle(fontSize: 13, color: grey)),
                       ]),
                     ),
                     for (final t in tasks) _answerRow(context, t),
@@ -99,13 +114,17 @@ class _ReviewScreenState extends State<ReviewScreen> {
           ),
         const SizedBox(height: 8),
         Row(children: [
-          Expanded(child: _choice(Icons.check_rounded, 'Done', AppColors.accent, s == TaskStatus.done, () => setState(() => status[t.id] = TaskStatus.done))),
+          Expanded(child: _choice(Icons.check_rounded, 'Done', AppColors.accent, s == TaskStatus.done, () => _pick(t, TaskStatus.done))),
           const SizedBox(width: 6),
-          Expanded(child: _choice(Icons.close_rounded, 'Not done', notDoneColor, s == TaskStatus.notDone, () => setState(() => status[t.id] = TaskStatus.notDone))),
-          const SizedBox(width: 6),
-          Expanded(child: _choice(Icons.pause_rounded, 'Paused', sprintBlue, s == TaskStatus.paused, () => setState(() => status[t.id] = TaskStatus.paused))),
+          Expanded(child: _choice(Icons.timelapse_rounded, 'Partly done', partialColor, s == TaskStatus.partial, () => _pick(t, TaskStatus.partial))),
         ]),
-        if (s == TaskStatus.notDone)
+        const SizedBox(height: 6),
+        Row(children: [
+          Expanded(child: _choice(Icons.close_rounded, 'Not done', notDoneColor, s == TaskStatus.notDone, () => _pick(t, TaskStatus.notDone))),
+          const SizedBox(width: 6),
+          Expanded(child: _choice(Icons.pause_rounded, 'Paused', sprintBlue, s == TaskStatus.paused, () => _pick(t, TaskStatus.paused))),
+        ]),
+        if (s == TaskStatus.notDone || s == TaskStatus.partial)
           InkWell(
             onTap: () => setState(() => move[t.id] = !(move[t.id] ?? true)),
             child: Padding(
@@ -117,7 +136,12 @@ class _ReviewScreenState extends State<ReviewScreen> {
                   activeColor: AppColors.accent,
                   onChanged: (v) => setState(() => move[t.id] = v ?? false),
                 ),
-                Expanded(child: Text('Move to $_nextDayLabel', style: const TextStyle(fontSize: 14))),
+                Expanded(
+                  child: Text(
+                    s == TaskStatus.partial ? 'Continue the rest in $_nextDayLabel' : 'Move to $_nextDayLabel',
+                    style: const TextStyle(fontSize: 14),
+                  ),
+                ),
               ]),
             ),
           ),
@@ -129,6 +153,33 @@ class _ReviewScreenState extends State<ReviewScreen> {
               SizedBox(width: 10),
               Text('Goes to the Parked tab', style: TextStyle(fontSize: 13, color: sprintBlue)),
             ]),
+          ),
+        if (noteOpen.contains(t.id))
+          Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: TextField(
+              controller: notes[t.id],
+              minLines: 1,
+              maxLines: 4,
+              textCapitalization: TextCapitalization.sentences,
+              style: const TextStyle(fontSize: 14),
+              decoration: InputDecoration(
+                isDense: true,
+                labelText: 'Note',
+                hintText: s == TaskStatus.partial ? 'What is done, what is left?' : null,
+                border: const OutlineInputBorder(),
+              ),
+            ),
+          )
+        else
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              style: TextButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 4), visualDensity: VisualDensity.compact),
+              onPressed: () => setState(() => noteOpen.add(t.id)),
+              icon: const Icon(Icons.add_rounded, size: 18),
+              label: const Text('Add note', style: TextStyle(fontSize: 13)),
+            ),
           ),
       ]),
     );
@@ -181,7 +232,8 @@ class _Summary extends StatelessWidget {
     final grey = Theme.of(context).colorScheme.onSurfaceVariant;
     final list = sprint.tasksFor(date);
     final done = list.where((t) => t.status == TaskStatus.done).length;
-    final moved = list.where((t) => t.status == TaskStatus.notDone && t.movedId != null).length;
+    final partial = list.where((t) => t.status == TaskStatus.partial).length;
+    final moved = list.where((t) => (t.status == TaskStatus.notDone || t.status == TaskStatus.partial) && t.movedId != null).length;
     final paused = list.where((t) => t.status == TaskStatus.paused).length;
     return Center(
       child: Padding(
@@ -198,7 +250,8 @@ class _Summary extends StatelessWidget {
           const SizedBox(height: 8),
           Text('$done of ${list.length} tasks done', style: const TextStyle(fontSize: 19)),
           const SizedBox(height: 6),
-          if (moved > 0) Text('$moved moved to the next work day', style: TextStyle(fontSize: 16, color: grey)),
+          if (partial > 0) Text('$partial partly done', style: TextStyle(fontSize: 16, color: grey)),
+          if (moved > 0) Text('$moved continue on the next work day', style: TextStyle(fontSize: 16, color: grey)),
           if (paused > 0) Text('$paused paused – see Parked tasks', style: TextStyle(fontSize: 16, color: grey)),
           const SizedBox(height: 28),
           FilledButton(
