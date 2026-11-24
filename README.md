@@ -1,6 +1,7 @@
-# Remindly
+# personalhelper
+My personal helper who reminds me of everything and lets me track my daily tasks.
 
-An offline Android reminder app (Flutter UI with a native Android alarm engine). Use it for medicines, drinking water, vehicle pollution and insurance renewals, bills, birthdays and anything else.
+**Remindly** is an offline Android reminder app (Flutter UI with a native Android alarm engine). Use it for medicines, drinking water, vehicle pollution and insurance renewals, bills, birthdays and anything else.
 
 ## Features
 - **Reminders that repeat:** once, every N days, chosen weekdays (every N weeks), every N months (for example a pollution certificate every 6 months), yearly, or every few hours within a time window (for example water every 2 h from 8 AM to 10 PM). Each reminder can have an end date.
