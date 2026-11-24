@@ -13,22 +13,26 @@ class TeamSummary {
   final List<({String text, String source})> actions;
   final List<({String name, int count, List<String> points})> chats;
   final Map<String, dynamic> diagnostics;
+  final bool partial; // "today so far" (notifications mode)
 
   TeamSummary.fromJson(Map<String, dynamic> j)
-      : date = j['date'] as String,
-        generatedAt = (j['generatedAt'] as num?)?.toInt() ?? 0,
-        highlights = ((j['highlights'] as List?) ?? const []).map((e) => e.toString()).toList(),
-        actions = ((j['actions'] as List?) ?? const [])
-            .map((e) => (text: (e as Map)['text']?.toString() ?? '', source: e['source']?.toString() ?? ''))
-            .toList(),
-        chats = ((j['chats'] as List?) ?? const [])
-            .map((e) => (
-                  name: (e as Map)['name']?.toString() ?? 'Chat',
-                  count: (e['count'] as num?)?.toInt() ?? 0,
-                  points: ((e['points'] as List?) ?? const []).map((p) => p.toString()).toList(),
-                ))
-            .toList(),
-        diagnostics = Map<String, dynamic>.from((j['diagnostics'] as Map?) ?? const {});
+    : date = j['date'] as String,
+      generatedAt = (j['generatedAt'] as num?)?.toInt() ?? 0,
+      highlights = ((j['highlights'] as List?) ?? const []).map((e) => e.toString()).toList(),
+      actions = ((j['actions'] as List?) ?? const [])
+          .map((e) => (text: (e as Map)['text']?.toString() ?? '', source: e['source']?.toString() ?? ''))
+          .toList(),
+      chats = ((j['chats'] as List?) ?? const [])
+          .map(
+            (e) => (
+              name: (e as Map)['name']?.toString() ?? 'Chat',
+              count: (e['count'] as num?)?.toInt() ?? 0,
+              points: ((e['points'] as List?) ?? const []).map((p) => p.toString()).toList(),
+            ),
+          )
+          .toList(),
+      diagnostics = Map<String, dynamic>.from((j['diagnostics'] as Map?) ?? const {}),
+      partial = j['partial'] as bool? ?? false;
 
   int get messages => (diagnostics['messages'] as num?)?.toInt() ?? chats.fold(0, (s, c) => s + c.count);
   String get model => diagnostics['model']?.toString() ?? '';
@@ -45,7 +49,13 @@ class TeamState extends ChangeNotifier {
   bool enabled = false;
   String tenantId = '';
   String clientId = '';
-  String mode = 'graph'; // 'graph' (Microsoft Graph, Chat.Read) or 'mcp' (company Teams MCP server)
+
+  /// 'notifications' (Teams notifications on this phone, no sign-in), 'graph' (Microsoft Graph, Chat.Read)
+  /// or 'mcp' (company Teams MCP server).
+  String mode = 'notifications';
+  bool notifAccess = false;
+  bool teamsInstalled = true;
+  int collectedToday = 0;
   String scope = ''; // MCP only; empty = app default (shared Agent 365 Tools, Teams scope)
   String serverUrl = ''; // empty = app default Teams MCP server address
   String? account;
@@ -56,33 +66,36 @@ class TeamState extends ChangeNotifier {
   bool busy = false;
 
   bool get configured => tenantId.isNotEmpty && clientId.isNotEmpty;
+  bool get viaNotifications => mode == 'notifications';
+
+  /// Ready to show summaries: notification access granted, or signed in to Microsoft.
+  bool get ready => viaNotifications ? notifAccess : configured && account != null;
   bool get signedIn => account != null;
   String get today => isoDate(DateTime.now());
   bool get canTestToday => lastTestPull != today;
 
   /// Newest first, at most [keepDays].
-  List<TeamSummary> get summaries =>
-      _summaries.map(TeamSummary.fromJson).toList()..sort((a, b) => b.date.compareTo(a.date));
+  List<TeamSummary> get summaries => _summaries.map(TeamSummary.fromJson).toList()..sort((a, b) => b.date.compareTo(a.date));
 
   Map<String, dynamic> toJson() => {
-        'enabled': enabled,
-        'tenantId': tenantId,
-        'clientId': clientId,
-        'mode': mode,
-        'scope': scope,
-        'serverUrl': serverUrl,
-        'account': account,
-        'lastTestPull': lastTestPull,
-        'lastDiagnostics': lastDiagnostics,
-        'lastError': lastError,
-        'summaries': _summaries,
-      };
+    'enabled': enabled,
+    'tenantId': tenantId,
+    'clientId': clientId,
+    'mode': mode,
+    'scope': scope,
+    'serverUrl': serverUrl,
+    'account': account,
+    'lastTestPull': lastTestPull,
+    'lastDiagnostics': lastDiagnostics,
+    'lastError': lastError,
+    'summaries': _summaries,
+  };
 
   void fromJson(Map<String, dynamic> j) {
     enabled = j['enabled'] as bool? ?? false;
     tenantId = j['tenantId'] as String? ?? '';
     clientId = j['clientId'] as String? ?? '';
-    mode = j['mode'] as String? ?? 'graph';
+    mode = j['mode'] as String? ?? 'notifications';
     scope = j['scope'] as String? ?? '';
     serverUrl = j['serverUrl'] as String? ?? '';
     account = j['account'] as String?;
@@ -97,7 +110,64 @@ class TeamState extends ChangeNotifier {
     try {
       fromJson(jsonDecode(await _ch.invokeMethod<String>('getTeam') ?? '{}') as Map<String, dynamic>);
     } catch (_) {}
+    await refreshNotifications(notify: false);
     notifyListeners();
+  }
+
+  // ---------------- notifications mode ----------------
+
+  Future<void> refreshNotifications({bool notify = true}) async {
+    try {
+      final r = jsonDecode(await _ch.invokeMethod<String>('teamNotifStatus') ?? '{}') as Map<String, dynamic>;
+      notifAccess = r['access'] as bool? ?? false;
+      collectedToday = (r['today'] as num?)?.toInt() ?? 0;
+      teamsInstalled = r['teamsInstalled'] as bool? ?? true;
+    } catch (_) {}
+    if (notify) notifyListeners();
+  }
+
+  Future<void> setMode(String m) async {
+    mode = m;
+    await save();
+  }
+
+  /// Opens Android's "Notification access" page for DayMate.
+  Future<void> openNotificationAccess() async {
+    await setMode('notifications');
+    await _ch.invokeMethod('teamNotifSettings');
+  }
+
+  /// Summarises collected Teams notifications (no network). No daily limit: it is all on the phone.
+  Future<String?> summariseNotifications({required bool today}) async {
+    busy = true;
+    lastError = null;
+    notifyListeners();
+    try {
+      final r = jsonDecode(await _ch.invokeMethod<String>('teamPullNotifications', today) ?? '{}') as Map<String, dynamic>;
+      if (r['ok'] != true) {
+        lastError = r['error']?.toString() ?? 'Something went wrong';
+        return lastError;
+      }
+      lastDiagnostics = Map<String, dynamic>.from((r['diagnostics'] as Map?) ?? const {});
+      r.remove('ok');
+      _summaries.removeWhere((s) => s['date'] == r['date']);
+      _summaries.add(r);
+      _prune();
+      return null;
+    } catch (e) {
+      lastError = '$e';
+      return lastError;
+    } finally {
+      busy = false;
+      await save();
+    }
+  }
+
+  Future<void> clearCollected() async {
+    try {
+      await _ch.invokeMethod('teamNotifClear');
+    } catch (_) {}
+    await refreshNotifications();
   }
 
   Future<void> save() async {
@@ -212,6 +282,10 @@ class TeamState extends ChangeNotifier {
     lastError = null;
     _summaries.clear();
     enabled = false;
+    mode = 'notifications';
+    try {
+      await _ch.invokeMethod('teamNotifClear');
+    } catch (_) {}
     await save();
   }
 
@@ -222,7 +296,7 @@ class TeamState extends ChangeNotifier {
       'DayMate Team summary – connection check',
       'Date: ${lastTestPull ?? '-'}',
       'Result: ${lastError == null ? 'OK' : 'Error – $lastError'}',
-      'Connection: ${mode == 'mcp' ? 'Teams MCP server · permission ${scope.isEmpty ? 'default' : scope} · server ${serverUrl.isEmpty ? 'default' : 'custom'}' : 'Microsoft Graph (Chat.Read)'}',
+      'Connection: ${viaNotifications ? 'Teams notifications on this phone (access ${notifAccess ? 'on' : 'off'}, $collectedToday collected today)' : (mode == 'mcp' ? 'Teams MCP server · permission ${scope.isEmpty ? 'default' : scope} · server ${serverUrl.isEmpty ? 'default' : 'custom'}' : 'Microsoft Graph (Chat.Read)')}',
       'Tools on server: ${d['toolsTotal'] ?? '-'} (read-only allowed: ${(d['toolsAllowed'] as List?)?.length ?? '-'}, blocked: ${d['toolsBlocked'] ?? '-'})',
       'Allowed tools: ${(d['toolsAllowed'] as List?)?.join(', ') ?? '-'}',
       'Chat tool: ${d['chatTool'] ?? '-'} · Message tool: ${d['messageTool'] ?? '-'}',

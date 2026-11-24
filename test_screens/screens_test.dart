@@ -120,6 +120,7 @@ Map<String, dynamic> sprintJson({bool enabled = true}) {
 
 bool sprintOn = false;
 Map<String, dynamic> teamJson = {};
+bool notifAccess = false;
 
 Map<String, dynamic> teamSample() => {
       'enabled': true,
@@ -164,6 +165,7 @@ void mockNative({bool empty = false}) {
       'getSprint' => jsonEncode(sprintJson(enabled: sprintOn)),
       'saveSprint' => null,
       'getTeam' => jsonEncode(teamJson),
+      'teamNotifStatus' => jsonEncode({'access': notifAccess, 'today': 37, 'teamsInstalled': true}),
       'saveTeam' => null,
       'takeLaunchAction' => null,
       'getHistory' => jsonEncode(empty ? [] : history),
@@ -219,6 +221,13 @@ void main() {
     await t.pumpAndSettle();
     await expectLater(find.byType(MaterialApp), matchesGoldenFile('goldens/t2_team_summary.png'));
     sprintOn = false;
+    teamJson = {};
+  });
+  testWidgets('team notifications summary', (t) async {
+    teamJson = {...teamSample(), 'mode': 'notifications'};
+    notifAccess = true;
+    await shot(t, 't4_team_notifications', const TeamScreen());
+    notifAccess = false;
     teamJson = {};
   });
   testWidgets('team settings', (t) async {

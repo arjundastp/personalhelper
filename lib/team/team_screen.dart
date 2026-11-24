@@ -29,7 +29,7 @@ class TeamScreen extends StatelessWidget {
             ),
           ],
         ),
-        body: t.configured && t.signedIn ? const _SummaryView() : const _SetupView(),
+        body: t.ready ? const _SummaryView() : const _SetupView(),
       ),
     );
   }
@@ -127,94 +127,159 @@ class _SetupViewState extends State<_SetupView> {
         ),
         const SizedBox(height: 4),
         Text(
-          'DayMate reads yesterday\'s Teams chats with your work account (read-only) and summarises them on this phone.',
+          'DayMate summarises your Teams chats on this phone. Choose how it gets them:',
           style: TextStyle(fontSize: 13.5, color: c.muted, height: 1.4),
         ),
-        const SizedBox(height: 10),
-        _promise(c, 'Read-only.', 'Uses Chat.Read, which can only read. The app never posts, edits or deletes.'),
-        _promise(c, 'Stays on your phone.', 'The AI runs on the phone. Nothing goes to any other server or AI service.'),
-        _promise(c, 'Kept 10 days.', 'Older summaries delete themselves. Raw messages are never saved.'),
-        const SizedBox(height: 14),
-        Text(
-          'Your company\'s IDs',
-          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: c.ink),
-        ),
-        Text(
-          'From the DayMate app registration in Microsoft Entra (Overview page). Saved only on this phone.',
-          style: TextStyle(fontSize: 12.5, color: c.muted),
-        ),
-        TextField(
-          controller: tenant,
-          style: const TextStyle(fontSize: 14.5),
-          decoration: const InputDecoration(labelText: 'Directory (tenant) ID', isDense: true),
-        ),
-        TextField(
-          controller: client,
-          style: const TextStyle(fontSize: 14.5),
-          decoration: const InputDecoration(labelText: 'Application (client) ID', isDense: true),
-        ),
-        const SizedBox(height: 14),
-        Text(
-          'Connection',
-          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: c.ink),
+        const SizedBox(height: 4),
+        RadioRow(
+          label: 'Teams notifications on this phone (no sign-in)',
+          selected: mode == 'notifications',
+          onTap: () => setState(() => mode = 'notifications'),
         ),
         RadioRow(
-          label: 'Microsoft Graph · Chat.Read (recommended)',
+          label: 'Microsoft Graph · Chat.Read (needs admin approval)',
           selected: mode == 'graph',
           onTap: () => setState(() => mode = 'graph'),
         ),
         RadioRow(label: 'Company Teams MCP server', selected: mode == 'mcp', onTap: () => setState(() => mode = 'mcp')),
-        if (mode == 'mcp')
-          Theme(
-            data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-            child: ExpansionTile(
-              tilePadding: EdgeInsets.zero,
-              childrenPadding: EdgeInsets.zero,
-              title: Text('Advanced (only if IT gives you different values)', style: TextStyle(fontSize: 13.5, color: c.muted)),
-              children: [
-                TextField(
-                  controller: scope,
-                  style: const TextStyle(fontSize: 13),
-                  decoration: const InputDecoration(labelText: 'Teams server permission (scope)', isDense: true),
-                ),
-                TextField(
-                  controller: server,
-                  style: const TextStyle(fontSize: 13),
-                  decoration: const InputDecoration(labelText: 'Teams server address', isDense: true),
-                ),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: TextButton(
-                    onPressed: () => setState(() {
-                      scope.text = TeamState.defaultScope;
-                      server.text = TeamState.defaultServer;
-                    }),
-                    child: const Text('Reset to defaults'),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        if (error != null)
-          Padding(
-            padding: const EdgeInsets.only(top: 10),
-            child: SelectableText(error!, style: const TextStyle(fontSize: 13, color: AppColors.red)),
-          ),
-        const SizedBox(height: 18),
-        SizedBox(
-          width: double.infinity,
-          child: OutlinedButton.icon(
-            style: OutlinedButton.styleFrom(minimumSize: const Size(0, 46)),
-            onPressed: TeamState.instance.busy ? null : _signIn,
-            icon: TeamState.instance.busy
-                ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                : const _MsLogo(),
-            label: const Text('Sign in with work account'),
-          ),
-        ),
+        const SizedBox(height: 8),
+        if (mode == 'notifications') ..._notificationSetup(c) else ..._signInSetup(c),
       ],
     );
   }
+
+  /// No sign-in: DayMate reads only Teams notifications that arrive on this phone.
+  List<Widget> _notificationSetup(SprintColors c) {
+    final t = TeamState.instance;
+    return [
+      _promise(c, 'No sign-in, no admin.', 'Uses the Teams notifications already on your phone. Nothing goes to the internet.'),
+      _promise(c, 'Only Teams.', 'Notifications from every other app are ignored.'),
+      _promise(c, 'Short-lived.', 'Notification text is kept at most 2 days, only to make the summary. Summaries are kept 10 days.'),
+      const SizedBox(height: 8),
+      _tip(
+        c,
+        Icons.info_outline_rounded,
+        'Only messages that show as notifications are included. In Teams on your phone, turn off Settings > Notifications > '
+        '"Block notifications when active on desktop", and don\'t mute chats you want summarised.',
+      ),
+      if (!t.teamsInstalled) _tip(c, Icons.warning_amber_rounded, 'Microsoft Teams does not seem to be installed on this phone.'),
+      const SizedBox(height: 16),
+      SizedBox(
+        width: double.infinity,
+        child: FilledButton.icon(
+          style: FilledButton.styleFrom(minimumSize: const Size(0, 46)),
+          onPressed: () async {
+            await t.openNotificationAccess();
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Turn on DayMate in the list, then come back.')));
+            }
+          },
+          icon: const Icon(Icons.notifications_active_outlined),
+          label: const Text('Allow notification access'),
+        ),
+      ),
+      const SizedBox(height: 8),
+      Text(
+        'Android shows a warning because notification access is powerful. DayMate only keeps Teams notifications.',
+        style: TextStyle(fontSize: 12, color: c.muted, height: 1.35),
+      ),
+    ];
+  }
+
+  Widget _tip(SprintColors c, IconData icon, String text) => Container(
+    margin: const EdgeInsets.only(top: 8),
+    padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+    decoration: BoxDecoration(color: c.card, borderRadius: BorderRadius.circular(12)),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 18, color: c.muted),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(text, style: TextStyle(fontSize: 12.5, color: c.ink, height: 1.4)),
+        ),
+      ],
+    ),
+  );
+
+  List<Widget> _signInSetup(SprintColors c) => [
+    _promise(
+      c,
+      'Read-only.',
+      mode == 'mcp'
+          ? 'Only reading tools can be called; posting, editing and deleting are blocked in the app.'
+          : 'Uses Chat.Read, which can only read. The app never posts, edits or deletes.',
+    ),
+    _promise(c, 'Stays on your phone.', 'The AI runs on the phone. Nothing goes to any other server or AI service.'),
+    _promise(c, 'Kept 10 days.', 'Older summaries delete themselves. Raw messages are never saved.'),
+    const SizedBox(height: 14),
+    Text(
+      'Your company\'s IDs',
+      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: c.ink),
+    ),
+    Text(
+      'From the DayMate app registration in Microsoft Entra (Overview page). Saved only on this phone.',
+      style: TextStyle(fontSize: 12.5, color: c.muted),
+    ),
+    TextField(
+      controller: tenant,
+      style: const TextStyle(fontSize: 14.5),
+      decoration: const InputDecoration(labelText: 'Directory (tenant) ID', isDense: true),
+    ),
+    TextField(
+      controller: client,
+      style: const TextStyle(fontSize: 14.5),
+      decoration: const InputDecoration(labelText: 'Application (client) ID', isDense: true),
+    ),
+    if (mode == 'mcp')
+      Theme(
+        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+        child: ExpansionTile(
+          tilePadding: EdgeInsets.zero,
+          childrenPadding: EdgeInsets.zero,
+          title: Text('Advanced (only if IT gives you different values)', style: TextStyle(fontSize: 13.5, color: c.muted)),
+          children: [
+            TextField(
+              controller: scope,
+              style: const TextStyle(fontSize: 13),
+              decoration: const InputDecoration(labelText: 'Teams server permission (scope)', isDense: true),
+            ),
+            TextField(
+              controller: server,
+              style: const TextStyle(fontSize: 13),
+              decoration: const InputDecoration(labelText: 'Teams server address', isDense: true),
+            ),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton(
+                onPressed: () => setState(() {
+                  scope.text = TeamState.defaultScope;
+                  server.text = TeamState.defaultServer;
+                }),
+                child: const Text('Reset to defaults'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    if (error != null)
+      Padding(
+        padding: const EdgeInsets.only(top: 10),
+        child: SelectableText(error!, style: const TextStyle(fontSize: 13, color: AppColors.red)),
+      ),
+    const SizedBox(height: 18),
+    SizedBox(
+      width: double.infinity,
+      child: OutlinedButton.icon(
+        style: OutlinedButton.styleFrom(minimumSize: const Size(0, 46)),
+        onPressed: TeamState.instance.busy ? null : _signIn,
+        icon: TeamState.instance.busy
+            ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+            : const _MsLogo(),
+        label: const Text('Sign in with work account'),
+      ),
+    ),
+  ];
 }
 
 class _MsLogo extends StatelessWidget {
@@ -263,6 +328,30 @@ class _SummaryViewState extends State<_SummaryView> {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e == null ? 'Summary ready' : 'Did not work – see details below')));
   }
 
+  Future<void> _summarise({required bool today}) async {
+    final e = await t.summariseNotifications(today: today);
+    await t.refreshNotifications();
+    if (!mounted) return;
+    setState(() {
+      selected = 0;
+      open
+        ..clear()
+        ..add(0);
+    });
+    final s = t.summaries.isEmpty ? null : t.summaries.first;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          e != null
+              ? 'Did not work – see details below'
+              : (s == null || s.chats.isEmpty)
+              ? 'No Teams notifications were collected for that day yet.'
+              : 'Summary ready',
+        ),
+      ),
+    );
+  }
+
   String _dayLabel(String iso) {
     final d = DateTime.parse(iso);
     final diff = DateTime.now().difference(DateTime(d.year, d.month, d.day)).inDays;
@@ -279,47 +368,101 @@ class _SummaryViewState extends State<_SummaryView> {
     return ListView(
       padding: const EdgeInsets.fromLTRB(14, 10, 14, 24),
       children: [
-        // ---- test pull ----
-        Container(
-          padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
-          decoration: BoxDecoration(color: c.card, borderRadius: BorderRadius.circular(14)),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Row(
-                children: [
-                  Icon(Icons.science_outlined, size: 18, color: c.muted),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Test: pull yesterday from Teams',
-                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: c.ink),
+        // ---- notifications mode: collect + summarise locally ----
+        if (t.viaNotifications)
+          Container(
+            padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+            decoration: BoxDecoration(color: c.card, borderRadius: BorderRadius.circular(14)),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.notifications_active_outlined, size: 18, color: c.muted),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Listening to Teams notifications',
+                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: c.ink),
+                      ),
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 2),
-              Text(
-                t.busy
-                    ? 'Reading yesterday\'s chats (read-only), then summarising on this phone… this can take a minute.'
-                    : t.canTestToday
-                    ? 'Once a day while we test. Signed in as ${t.account}.'
-                    : 'Tested today. The next test is available tomorrow.',
-                style: TextStyle(fontSize: 12.5, color: c.muted, height: 1.35),
-              ),
-              const SizedBox(height: 10),
-              if (t.busy)
-                const LinearProgressIndicator(minHeight: 4)
-              else
-                FilledButton.icon(
-                  style: FilledButton.styleFrom(minimumSize: const Size(0, 42)),
-                  onPressed: t.canTestToday ? _pull : null,
-                  icon: Icon(t.canTestToday ? Icons.download_rounded : Icons.check_rounded, size: 18),
-                  label: Text(t.canTestToday ? 'Pull yesterday now' : 'Done for today'),
+                  ],
                 ),
-            ],
+                const SizedBox(height: 2),
+                Text(
+                  t.busy
+                      ? 'Summarising on this phone…'
+                      : '${t.collectedToday} message${t.collectedToday == 1 ? '' : 's'} collected today · nothing leaves the phone',
+                  style: TextStyle(fontSize: 12.5, color: c.muted, height: 1.35),
+                ),
+                const SizedBox(height: 10),
+                if (t.busy)
+                  const LinearProgressIndicator(minHeight: 4)
+                else
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          style: OutlinedButton.styleFrom(minimumSize: const Size(0, 42)),
+                          onPressed: () => _summarise(today: true),
+                          child: const Text('Today so far'),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: FilledButton(
+                          style: FilledButton.styleFrom(minimumSize: const Size(0, 42)),
+                          onPressed: () => _summarise(today: false),
+                          child: const Text('Yesterday'),
+                        ),
+                      ),
+                    ],
+                  ),
+              ],
+            ),
+          )
+        else
+          // ---- test pull ----
+          Container(
+            padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+            decoration: BoxDecoration(color: c.card, borderRadius: BorderRadius.circular(14)),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.science_outlined, size: 18, color: c.muted),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Test: pull yesterday from Teams',
+                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: c.ink),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  t.busy
+                      ? 'Reading yesterday\'s chats (read-only), then summarising on this phone… this can take a minute.'
+                      : t.canTestToday
+                      ? 'Once a day while we test. Signed in as ${t.account}.'
+                      : 'Tested today. The next test is available tomorrow.',
+                  style: TextStyle(fontSize: 12.5, color: c.muted, height: 1.35),
+                ),
+                const SizedBox(height: 10),
+                if (t.busy)
+                  const LinearProgressIndicator(minHeight: 4)
+                else
+                  FilledButton.icon(
+                    style: FilledButton.styleFrom(minimumSize: const Size(0, 42)),
+                    onPressed: t.canTestToday ? _pull : null,
+                    icon: Icon(t.canTestToday ? Icons.download_rounded : Icons.check_rounded, size: 18),
+                    label: Text(t.canTestToday ? 'Pull yesterday now' : 'Done for today'),
+                  ),
+              ],
+            ),
           ),
-        ),
 
         if (t.lastError != null) ...[
           const SizedBox(height: 10),
@@ -376,7 +519,7 @@ class _SummaryViewState extends State<_SummaryView> {
                 visualDensity: VisualDensity.compact,
                 showCheckmark: false,
                 labelStyle: TextStyle(fontSize: 12.5, color: c.ink),
-                label: Text(_dayLabel(list[i].date)),
+                label: Text(list[i].partial && _dayLabel(list[i].date) == 'Today' ? 'Today (so far)' : _dayLabel(list[i].date)),
                 selected: i == selected,
                 onSelected: (_) => setState(() {
                   selected = i;
@@ -646,7 +789,8 @@ class TeamSettingsScreen extends StatelessWidget {
                   ),
                 ),
               const GroupGap(),
-              OptionRow(icon: Icons.account_circle_outlined, title: 'Work account', value: t.account ?? 'Not signed in'),
+              if (!t.viaNotifications)
+                OptionRow(icon: Icons.account_circle_outlined, title: 'Work account', value: t.account ?? 'Not signed in'),
               OptionRow(
                 icon: Icons.badge_outlined,
                 title: 'Company IDs',
@@ -655,7 +799,27 @@ class TeamSettingsScreen extends StatelessWidget {
               OptionRow(
                 icon: Icons.cable_rounded,
                 title: 'Connection',
-                value: t.mode == 'mcp' ? 'Company Teams MCP server (read tools only)' : 'Microsoft Graph · Chat.Read (read-only)',
+                onTap: () async {
+                  final v = await chooseOne<String>(
+                    context,
+                    title: 'How DayMate gets your Teams chats',
+                    options: const [
+                      ('notifications', 'Teams notifications on this phone (no sign-in)'),
+                      ('graph', 'Microsoft Graph · Chat.Read (needs admin approval)'),
+                      ('mcp', 'Company Teams MCP server'),
+                    ],
+                    current: t.mode,
+                  );
+                  if (v != null && v != t.mode) {
+                    await t.setMode(v);
+                    if (context.mounted) Navigator.of(context).pop();
+                  }
+                },
+                value: switch (t.mode) {
+                  'notifications' => 'Teams notifications on this phone · tap to change',
+                  'mcp' => 'Company Teams MCP server (read tools only) · tap to change',
+                  _ => 'Microsoft Graph · Chat.Read (read-only) · tap to change',
+                },
               ),
               OptionRow(
                 icon: Icons.memory_rounded,
@@ -674,6 +838,25 @@ class TeamSettingsScreen extends StatelessWidget {
                 value:
                     '${t.summaries.length} summar${t.summaries.length == 1 ? 'y' : 'ies'} · older than ${TeamState.keepDays} days delete themselves',
               ),
+              if (t.viaNotifications) ...[
+                OptionRow(
+                  icon: Icons.notifications_outlined,
+                  title: 'Notification access',
+                  value: t.notifAccess ? 'On · ${t.collectedToday} Teams messages collected today' : 'Off · tap to allow',
+                  onTap: () => t.openNotificationAccess(),
+                ),
+                OptionRow(
+                  icon: Icons.cleaning_services_outlined,
+                  color: AppColors.red,
+                  title: 'Delete collected notifications',
+                  value: 'Removes the notification text kept for summarising (max 2 days)',
+                  onTap: () async {
+                    if (await _confirm(context, 'Delete collected notifications?', 'Summaries already made are kept.', 'Delete')) {
+                      await t.clearCollected();
+                    }
+                  },
+                ),
+              ],
               OptionRow(
                 icon: Icons.delete_outline_rounded,
                 color: AppColors.red,

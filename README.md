@@ -4,7 +4,7 @@
 
 ## Download
 
-**[⬇ Download DayMate for Android](https://github.com/arjundastp/personalhelper/raw/main/downloads/DayMate.apk)** (version 1.8.2, about 20 MB, Android 8.0 or newer)
+**[⬇ Download DayMate for Android](https://github.com/arjundastp/personalhelper/raw/main/downloads/DayMate.apk)** (version 1.9, about 20 MB, Android 8.0 or newer)
 
 - Most phones: [`DayMate.apk`](https://github.com/arjundastp/personalhelper/raw/main/downloads/DayMate.apk)
 - Older or very low-cost phones (32-bit): [`DayMate-older-phones.apk`](https://github.com/arjundastp/personalhelper/raw/main/downloads/DayMate-older-phones.apk)
@@ -30,9 +30,11 @@ On first start, tap **Allow** so reminders can ring and show full screen.
   Tabs across the top (Today · Goals · Achievements · Insights · Parked · History); Insights shows completion %, a daily progress chart,
   how tasks ended, an activity calendar, best weekdays and tasks that keep slipping. Code: `lib/sprint/`, `android/.../Sprint.kt`.
 - **Team summary (optional, Settings → Extras → Add Team summary):** a third bottom tab that reads yesterday's
-  Microsoft Teams chats (Microsoft Graph with the read-only Chat.Read permission, or your company's Microsoft 365
-  Teams MCP server) and summarises them on the phone
-  (Gemini Nano via ML Kit GenAI when available, otherwise a simple digest). Read-only: Chat.Read cannot write and only GET requests are made; on the MCP route only list/get/search tools can
+  Microsoft Teams chats and summarises them on the phone. Three ways to get the chats: **Teams notifications on this
+  phone** (no sign-in or admin; reads only Microsoft Teams notifications once you allow Notification access, keeps the
+  text at most 2 days), Microsoft Graph with the read-only Chat.Read permission, or your company's Microsoft 365
+  Teams MCP server –
+  summarised on the phone (Gemini Nano via ML Kit GenAI when available, otherwise a simple digest). Read-only: Chat.Read cannot write and only GET requests are made; on the MCP route only list/get/search tools can
   be called and everything else is blocked in code (`Team.kt`). Summaries are kept 10 days; raw messages are never stored.
   Your company's tenant and app IDs are entered in the app and stored only on the phone, so nothing company-specific
   is in this repository or the public APK. Currently a once-a-day "Pull yesterday now" test button.
