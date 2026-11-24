@@ -87,6 +87,7 @@ object Scheduler {
      * "missed" alert a few seconds from now so the user sees them as soon as the phone is active.
      */
     fun resync(ctx: Context, ringMissed: Boolean) {
+        Sprint.arm(ctx)
         val now = System.currentTimeMillis()
         var delay = 3_000L
         for (r in Store.reminders(ctx)) {
@@ -137,6 +138,7 @@ class AlarmReceiver : BroadcastReceiver() {
         val id = intent.getIntExtra("id", -1)
         val kind = intent.getStringExtra("kind") ?: Scheduler.KIND_REGULAR
         val dueAt = intent.getLongExtra("dueAt", System.currentTimeMillis())
+        if (kind.startsWith("sprint_")) { Sprint.onFired(ctx, kind); return }
         if (id < 0 && kind != "test") return
         val req = if (kind == "test") RingRequest.test(ctx) else Scheduler.onFired(ctx, id, kind, dueAt)
         req?.let { AlarmService.ring(ctx, it) }

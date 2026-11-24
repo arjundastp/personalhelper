@@ -110,6 +110,18 @@ object Store {
         persist(ctx)
     }
 
+    // ---------------- daily sprint ----------------
+
+    /** The Daily Sprint data (settings, tasks, parked list), written by the Flutter side. */
+    fun sprint(ctx: Context): JSONObject = synchronized(lock) {
+        JSONObject((root(ctx).optJSONObject("sprint") ?: JSONObject()).toString())
+    }
+
+    fun saveSprint(ctx: Context, data: JSONObject) = synchronized(lock) {
+        root(ctx).put("sprint", data)
+        persist(ctx)
+    }
+
     // ---------------- history ----------------
 
     /** status: done | snoozed | auto_snoozed | missed */

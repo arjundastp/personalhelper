@@ -6,6 +6,11 @@ An offline Android reminder app (Flutter UI with a native Android alarm engine).
 - **Reminders that repeat:** once, every N days, chosen weekdays (every N weeks), every N months (for example a pollution certificate every 6 months), yearly, or every few hours within a time window (for example water every 2 h from 8 AM to 10 PM). Each reminder can have an end date.
 - **Quick-start templates:** Take medicine, Drink water, Pollution check (PUC), Vehicle insurance, Vehicle service, Pay a bill, Birthday, Doctor visit, Exercise, Water the plants.
 - **Sound on/off per reminder:** turn the sound off for a silent reminder that only shows the full-screen alert (and vibrates if vibration is on).
+- **Daily Sprint (optional, Settings → Extras → Add Daily Sprint):** a work-day planner on its own bottom tab.
+  Add small tasks for the day in a message-style box. A morning nudge comes at 10:30 AM and a full-screen
+  "How did today go?" alert at 6:30 PM (both editable, work days only). Mark each task Done, Not done
+  (optionally moved to the next work day, labelled "Moved from …") or Paused (goes to the Parked tasks list).
+  Also includes past days with a weekly score and a streak. Code: `lib/sprint/`, `android/.../Sprint.kt`.
 - **Full-screen alert:** turns the screen on and shows over the lock screen, with large **Done** and **Snooze** buttons.
 - **Rings in silent mode:** sound plays on the *alarm* stream, so silent or vibrate mode does not mute it, and Android's Do Not Disturb lets alarms through by default. If you grant DND access, Remindly also gets through "Total silence" and then restores your setting. It can raise the alarm volume to a minimum level while ringing.
 - **No reminder is lost:**

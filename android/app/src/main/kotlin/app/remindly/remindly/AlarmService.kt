@@ -232,6 +232,7 @@ class AlarmService : Service() {
     private fun onTimeout() {
         val req = current ?: return
         val autoRepeat = Store.settings(this).optInt("autoRepeat", 3)
+        if (req.id == Sprint.RING_ID) Sprint.postReviewReminder(this)
         if (req.id >= 0) {
             if (req.attempt < autoRepeat) {
                 Scheduler.snooze(this, req.id, req.snoozeMinutes, auto = true, attempt = req.attempt + 1)
@@ -246,6 +247,7 @@ class AlarmService : Service() {
 
     private fun finishCurrent(status: String) {
         val req = current ?: run { stopIfIdle(); return }
+        if (req.id == Sprint.RING_ID && status == "snoozed") Sprint.snooze(this, req.snoozeMinutes)
         if (req.id >= 0) {
             if (status == "snoozed") Scheduler.snooze(this, req.id, req.snoozeMinutes, auto = false, attempt = 0)
             Store.log(this, req.id, req.title, req.category, req.dueAt, status)
@@ -390,7 +392,17 @@ class AlarmService : Service() {
             .setFullScreenIntent(full, true)
             .setContentIntent(full)
             .addAction(Notification.Action.Builder(null, "Snooze ${req.snoozeMinutes} min", action(ACTION_SNOOZE, 2)).build())
-            .addAction(Notification.Action.Builder(null, "Dismiss", action(ACTION_DISMISS, 3)).build())
+            .addAction(
+                if (req.id == Sprint.RING_ID) Notification.Action.Builder(
+                    null, "Update now",
+                    PendingIntent.getActivity(
+                        this, 4,
+                        Intent(this, MainActivity::class.java).putExtra("openSprintReview", true).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                        PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+                    ),
+                ).build()
+                else Notification.Action.Builder(null, "Dismiss", action(ACTION_DISMISS, 3)).build()
+            )
             .build()
     }
 }
@@ -398,14 +410,14 @@ class AlarmService : Service() {
 object Categories {
     fun emoji(key: String) = when (key) {
         "medicine" -> "💊"; "water" -> "💧"; "vehicle" -> "🚗"; "bills" -> "🧾"; "birthday" -> "🎂"
-        "doctor" -> "🩺"; "exercise" -> "🏃"; "meeting" -> "📅"; "plants" -> "🪴"; "pets" -> "🐾"
+        "doctor" -> "🩺"; "exercise" -> "🏃"; "meeting" -> "📅"; "plants" -> "🪴"; "pets" -> "🐾"; "sprint" -> "📋"
         else -> "🔔"
     }
 
     fun color(key: String): Int = when (key) {
         "medicine" -> 0xFFE5484D; "water" -> 0xFF0090FF; "vehicle" -> 0xFF8E4EC6; "bills" -> 0xFFF76B15
         "birthday" -> 0xFFD6409F; "doctor" -> 0xFF12A594; "exercise" -> 0xFF30A46C; "meeting" -> 0xFF3E63DD
-        "plants" -> 0xFF46A758; "pets" -> 0xFFAD7F58
+        "plants" -> 0xFF46A758; "pets" -> 0xFFAD7F58; "sprint" -> 0xFF2F4FBF
         else -> 0xFF0D74CE
     }.toInt()
 }

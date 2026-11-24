@@ -3,6 +3,7 @@ import 'package:material_ui/material_ui.dart';
 import '../main.dart' show AppColors, confirmDeviceAuth;
 import '../models.dart';
 import '../native.dart';
+import '../sprint/sprint_state.dart';
 import '../state.dart';
 import '../widgets.dart';
 import 'sound_picker_screen.dart';
@@ -209,6 +210,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
               _switch(Icons.trending_up_rounded, 'Start softly', 'Sound gets louder slowly', 'gradualVolume', true),
               _switch(Icons.vibration_rounded, 'Vibrate', null, 'vibrate', true),
 
+              // ---- extras ----
+              const GroupGap(title: 'Extras'),
+              const _SprintCard(),
+
               // ---- lock ----
               const GroupGap(title: 'Privacy'),
               _switchRaw(
@@ -240,7 +245,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
               _switch(Icons.format_size_rounded, 'Bigger text', 'Easier to read', 'largeText', false),
               const SizedBox(height: 24),
-              Center(child: Text('Remindly 1.2', style: TextStyle(fontSize: 13, color: grey))),
+              Center(child: Text('Remindly 1.3', style: TextStyle(fontSize: 13, color: grey))),
             ],
           ),
         );
@@ -258,4 +263,79 @@ class _SettingsScreenState extends State<SettingsScreen> {
         trailing: Switch(value: on, onChanged: onChanged),
         onTap: () => onChanged(!on),
       );
+}
+
+/// "Add Daily Sprint": the optional work-day planner, hidden until added here.
+class _SprintCard extends StatelessWidget {
+  const _SprintCard();
+
+  @override
+  Widget build(BuildContext context) {
+    final sprint = SprintState.instance;
+    final theme = Theme.of(context);
+    final grey = theme.colorScheme.onSurfaceVariant;
+    final light = theme.brightness == Brightness.light;
+    return ListenableBuilder(
+      listenable: sprint,
+      builder: (context, _) {
+        final on = sprint.enabled;
+        return Container(
+          margin: const EdgeInsets.fromLTRB(16, 10, 16, 4),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: on ? AppColors.accent.withValues(alpha: 0.06) : null,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: on ? AppColors.accent : theme.colorScheme.outlineVariant, width: 1.5),
+          ),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Container(
+                width: 52,
+                height: 52,
+                decoration: BoxDecoration(color: const Color(0xFF3E63DD).withValues(alpha: 0.13), shape: BoxShape.circle),
+                child: const Icon(Icons.assignment_turned_in_outlined, color: Color(0xFF3E63DD), size: 26),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  const Text('Daily Sprint', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 3),
+                  Text('Plan your small work tasks each morning. Every evening it asks you which ones got done.',
+                      style: TextStyle(fontSize: 14.5, color: grey, height: 1.35)),
+                ]),
+              ),
+            ]),
+            const SizedBox(height: 14),
+            if (on)
+              Row(children: [
+                Icon(Icons.check_rounded, color: light ? AppColors.green : AppColors.accent, size: 22),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text('Added – see the bottom menu',
+                      style: TextStyle(fontSize: 15.5, fontWeight: FontWeight.w600, color: light ? AppColors.green : AppColors.accent)),
+                ),
+                OutlinedButton(
+                  style: OutlinedButton.styleFrom(foregroundColor: AppColors.red, minimumSize: const Size(0, 44)),
+                  onPressed: () => sprint.setEnabled(false),
+                  child: const Text('Remove'),
+                ),
+              ])
+            else
+              FilledButton.icon(
+                onPressed: () async {
+                  await sprint.setEnabled(true);
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                      content: Text('Daily Sprint added. Find it in the bottom menu.', style: TextStyle(fontSize: 16)),
+                    ));
+                  }
+                },
+                icon: const Icon(Icons.add_rounded),
+                label: const Text('Add Daily Sprint'),
+              ),
+          ]),
+        );
+      },
+    );
+  }
 }

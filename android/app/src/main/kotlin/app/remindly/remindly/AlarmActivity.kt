@@ -4,6 +4,8 @@ import android.animation.AnimatorSet
 import android.animation.ObjectAnimator
 import android.animation.ValueAnimator
 import android.app.Activity
+import android.app.KeyguardManager
+import android.content.Intent
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
 import android.os.Build
@@ -33,7 +35,9 @@ class AlarmActivity : Activity() {
         setContentView(R.layout.activity_alarm)
 
         findViewById<Button>(R.id.dismiss).setOnClickListener {
+            val sprint = AlarmService.current?.id == Sprint.RING_ID
             AlarmService.send(this, AlarmService.ACTION_DISMISS)
+            if (sprint) openSprintReview()
         }
         findViewById<Button>(R.id.snooze).setOnClickListener {
             AlarmService.send(this, AlarmService.ACTION_SNOOZE)
@@ -71,6 +75,7 @@ class AlarmActivity : Activity() {
         window.statusBarColor = Color.TRANSPARENT
 
         findViewById<TextView>(R.id.status).text = (if (req.soundOn) "" else "🔕  ") + when {
+            req.id == Sprint.RING_ID -> "Daily Sprint · end of day"
             req.missed -> "Missed while phone was off · due ${Fmt.time(this, req.dueAt)}"
             req.attempt > 0 -> "Reminder again · due ${Fmt.time(this, req.dueAt)}"
             else -> "Reminder · ${Fmt.time(this, req.dueAt)}"
@@ -89,13 +94,34 @@ class AlarmActivity : Activity() {
         }
 
         findViewById<Button>(R.id.dismiss).apply {
-            text = if (req.missed) "Got it" else "Done  ✓"
+            text = when {
+                req.id == Sprint.RING_ID -> "Update now"
+                req.missed -> "Got it"
+                else -> "Done  ✓"
+            }
             setTextColor(darken(color, 0.8f))
         }
         findViewById<Button>(R.id.snooze).apply {
             text = "Remind me in ${req.snoozeMinutes} min"
             visibility = if (req.id < 0) View.GONE else View.VISIBLE
         }
+    }
+
+    /** "Update now" on the evening Daily Sprint alert: unlock if needed, then open the review screen. */
+    private fun openSprintReview() {
+        val open = {
+            startActivity(
+                Intent(this, MainActivity::class.java)
+                    .putExtra("openSprintReview", true)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            )
+        }
+        val km = getSystemService(KeyguardManager::class.java)
+        if (km.isKeyguardLocked) {
+            km.requestDismissKeyguard(this, object : KeyguardManager.KeyguardDismissCallback() {
+                override fun onDismissSucceeded() { open() }
+            })
+        } else open()
     }
 
     private fun startPulse() {

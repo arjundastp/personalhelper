@@ -14,6 +14,11 @@ import 'package:remindly/screens/history_screen.dart';
 import 'package:remindly/screens/home_screen.dart';
 import 'package:remindly/screens/settings_screen.dart';
 import 'package:remindly/screens/sound_picker_screen.dart';
+import 'package:remindly/screens/shell.dart';
+import 'package:remindly/sprint/parked_screen.dart';
+import 'package:remindly/sprint/review_screen.dart';
+import 'package:remindly/sprint/sprint_history_screen.dart';
+import 'package:remindly/sprint/sprint_settings_screen.dart';
 import 'package:remindly/state.dart';
 
 Future<void> loadFont(String family, List<String> files) async {
@@ -52,12 +57,51 @@ List<Map<String, dynamic>> history = [
   {'reminderId': 2, 'title': 'Drink a glass of water', 'category': 'water', 'dueAt': at(const Duration(hours: -6)), 'at': at(const Duration(hours: -6)), 'status': 'auto_snoozed', 'seen': true},
 ];
 
+String iso(DateTime d) => isoDate(d);
+DateTime ago(int days) => DateTime(now.year, now.month, now.day).subtract(Duration(days: days));
+
+Map<String, dynamic> sprintJson({bool enabled = true}) {
+  var id = 1;
+  Map<String, dynamic> t(String text, DateTime d, String status, {String? from, int? movedId}) =>
+      {'id': id++, 'text': text, 'date': iso(d), 'status': status, 'from': from, 'movedId': movedId};
+  return {
+    'enabled': enabled, 'morningOn': true, 'morningMin': 630, 'eveningOn': true, 'eveningMin': 1110,
+    'workdays': [1, 2, 3, 4, 5, 6, 7], 'soundOn': true, 'nextId': 100,
+    'tasks': [
+      t('Reply to client emails', now, 'done'),
+      t('Review Ravi’s pull request', now, 'done'),
+      t('Prepare slides for 3 PM meeting', now, 'open'),
+      t('Fix login bug', now, 'open', from: 'Moved from ${['Mon','Tue','Wed','Thu','Fri','Sat','Sun'][ago(1).weekday - 1]}'),
+      t('Send weekly report', now, 'open'),
+      t('Fix login bug', ago(1), 'not', movedId: 4),
+      t('Update test cases', ago(1), 'done'),
+      t('Team sync notes', ago(1), 'done'),
+      t('Plan sprint backlog', ago(1), 'done'),
+      t('Write release notes', ago(2), 'done'),
+      t('Clean up old test data', ago(2), 'paused'),
+      t('Call vendor', ago(6), 'done'),
+      t('Expense report', ago(6), 'not'),
+    ],
+    'parked': [
+      {'id': 50, 'text': 'Update the onboarding document', 'pausedOn': iso(ago(1))},
+      {'id': 51, 'text': 'Clean up old test data', 'pausedOn': iso(ago(2))},
+      {'id': 52, 'text': 'Ask IT about new laptop', 'pausedOn': iso(ago(6))},
+    ],
+    'reviewed': [iso(ago(1)), iso(ago(2))],
+  };
+}
+
+bool sprintOn = false;
+
 void mockNative({bool empty = false}) {
   TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(
     const MethodChannel('remindly/native'),
     (call) async => switch (call.method) {
       'getReminders' => jsonEncode(empty ? [] : sampleReminders),
       'getSettings' => jsonEncode(settings),
+      'getSprint' => jsonEncode(sprintJson(enabled: sprintOn)),
+      'saveSprint' => null,
+      'takeLaunchAction' => null,
       'getHistory' => jsonEncode(empty ? [] : history),
       'permissions' => jsonEncode(perms),
       'deviceInfo' => jsonEncode({'manufacturer': 'Xiaomi', 'sdk': 35}),
@@ -98,6 +142,33 @@ void main() {
   });
 
   testWidgets('home', (t) => shot(t, '1_home', const HomeScreen()));
+  group('daily sprint', () {
+    setUp(() => sprintOn = true);
+    tearDown(() => sprintOn = false);
+    testWidgets('settings extras', (t) async {
+      await shot(t, 's0_settings_extras', const SettingsScreen());
+      await t.drag(find.byType(ListView).first, const Offset(0, -1400));
+      await t.pumpAndSettle();
+      await expectLater(find.byType(MaterialApp), matchesGoldenFile('goldens/s0_settings_extras.png'));
+    });
+    testWidgets('shell reminders', (t) => shot(t, 's1_shell_reminders', const Shell()));
+    testWidgets('sprint today', (t) async {
+      await shot(t, 's2_sprint_today', const Shell());
+      await t.tap(find.text('Daily Sprint').last);
+      await t.pumpAndSettle();
+      await expectLater(find.byType(MaterialApp), matchesGoldenFile('goldens/s2_sprint_today.png'));
+    });
+    testWidgets('review', (t) async {
+      await shot(t, 's3_review', ReviewScreen(date: iso(now)));
+      await t.tap(find.text('Not done').first);
+      await t.tap(find.text('Paused').at(2));
+      await t.pumpAndSettle();
+      await expectLater(find.byType(MaterialApp), matchesGoldenFile('goldens/s3_review.png'));
+    });
+    testWidgets('parked', (t) => shot(t, 's4_parked', const ParkedScreen()));
+    testWidgets('history', (t) => shot(t, 's5_history', const SprintHistoryScreen()));
+    testWidgets('sprint settings', (t) => shot(t, 's6_sprint_settings', const SprintSettingsScreen()));
+  });
   testWidgets('home dark', (t) => shot(t, '2_home_dark', const HomeScreen(), mode: ThemeMode.dark));
   testWidgets('home empty', (t) => shot(t, '3_home_empty', const HomeScreen(), empty: true));
   testWidgets('new water', (t) => shot(t, '4_new_water', EditScreen(template: templates[1])));

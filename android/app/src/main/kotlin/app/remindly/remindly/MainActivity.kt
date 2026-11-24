@@ -59,7 +59,20 @@ class MainActivity : FlutterFragmentActivity() {
         consumeIntent(intent)
     }
 
+    /** Screen the Flutter side should open next ("sprint" or "sprintReview"); read once via takeLaunchAction. */
+    private var launchAction: String? = null
+
     private fun consumeIntent(i: Intent?) {
+        if (i?.getBooleanExtra("openSprintReview", false) == true) {
+            launchAction = "sprintReview"
+            // Opening the review answers the evening alert, so stop it ringing.
+            if (AlarmService.current?.id == Sprint.RING_ID) AlarmService.send(this, AlarmService.ACTION_DISMISS)
+            i.removeExtra("openSprintReview")
+        } else if (i?.getBooleanExtra("openSprint", false) == true) {
+            launchAction = "sprint"
+            i.removeExtra("openSprint")
+        }
+        if (launchAction != null) main.postDelayed({ runCatching { channel.invokeMethod("changed", null) } }, 300)
         if (i?.getBooleanExtra("openHistory", false) == true) {
             main.postDelayed({ runCatching { channel.invokeMethod("openHistory", null) } }, 400)
         }
@@ -109,6 +122,13 @@ class MainActivity : FlutterFragmentActivity() {
                 result.success(JSONArray(Recurrence.upcoming(r, System.currentTimeMillis(), count)).toString())
             }
             "getSettings" -> result.success(Store.settings(ctx).toString())
+            "getSprint" -> result.success(Store.sprint(ctx).toString())
+            "saveSprint" -> {
+                Store.saveSprint(ctx, JSONObject(call.arguments as String))
+                Sprint.arm(ctx)
+                result.success(null)
+            }
+            "takeLaunchAction" -> { result.success(launchAction); launchAction = null }
             "saveSettings" -> { Store.saveSettings(ctx, JSONObject(call.arguments as String)); result.success(null) }
             "getHistory" -> result.success(Store.history(ctx).toString())
             "markHistorySeen" -> { Store.markHistorySeen(ctx); result.success(null) }

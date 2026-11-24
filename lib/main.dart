@@ -2,7 +2,7 @@ import 'package:flutter/services.dart';
 import 'package:local_auth/local_auth.dart';
 import 'package:material_ui/material_ui.dart';
 
-import 'screens/home_screen.dart';
+import 'screens/shell.dart';
 import 'state.dart';
 
 /// Colours modelled on the messaging apps most people already use every day:
@@ -128,6 +128,23 @@ ThemeData buildTheme(Brightness b, {String? fontFamily}) {
       showDragHandle: true,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
     ),
+    navigationBarTheme: NavigationBarThemeData(
+      backgroundColor: scheme.surface,
+      surfaceTintColor: Colors.transparent,
+      indicatorColor: light ? const Color(0xFFD9FDD3) : const Color(0xFF103529),
+      height: 76,
+      labelTextStyle: WidgetStateProperty.resolveWith((s) => TextStyle(
+            fontFamily: fontFamily,
+            fontSize: 13.5,
+            fontWeight: s.contains(WidgetState.selected) ? FontWeight.w700 : FontWeight.w500,
+            color: scheme.onSurface,
+          )),
+      iconTheme: WidgetStateProperty.resolveWith((s) => IconThemeData(
+            size: 24,
+            color: s.contains(WidgetState.selected) ? (light ? const Color(0xFF005C4B) : AppColors.accent) : scheme.onSurfaceVariant,
+          )),
+    ),
+    badgeTheme: BadgeThemeData(backgroundColor: AppColors.accent, textStyle: TextStyle(fontFamily: fontFamily, fontSize: 11, fontWeight: FontWeight.w700)),
     dialogTheme: DialogThemeData(backgroundColor: light ? Colors.white : AppColors.darkBar),
     snackBarTheme: const SnackBarThemeData(behavior: SnackBarBehavior.floating),
   );
@@ -155,7 +172,7 @@ class RemindlyApp extends StatelessWidget {
             child: AppLockGate(child: child!),
           );
         },
-        home: const HomeScreen(),
+        home: const Shell(),
       ),
     );
   }

@@ -4,6 +4,7 @@ import 'package:material_ui/material_ui.dart';
 
 import 'models.dart';
 import 'native.dart';
+import 'sprint/sprint_state.dart';
 
 /// App-wide state. The Android side is the source of truth; this mirrors it for the UI.
 class AppState extends ChangeNotifier {
@@ -16,6 +17,9 @@ class AppState extends ChangeNotifier {
   Map<String, bool> permissions = {};
   String manufacturer = '';
   bool loaded = false;
+
+  /// Screen to open next, from a Daily Sprint notification or alert: "sprint" | "sprintReview".
+  String? pendingOpen;
 
   /// Asked by native when the user taps a "missed reminder" notification.
   final openHistoryRequests = StreamController<void>.broadcast();
@@ -47,6 +51,8 @@ class AppState extends ChangeNotifier {
       settings = results[1] as Map<String, dynamic>;
       history = results[2] as List<HistoryEntry>;
       permissions = results[3] as Map<String, bool>;
+      await SprintState.instance.load();
+      pendingOpen = await Native.takeLaunchAction() ?? pendingOpen;
     } catch (_) {}
     loaded = true;
     notifyListeners();
