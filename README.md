@@ -4,10 +4,13 @@
 
 ## Download
 
-**[⬇ Download DayMate for Android](https://github.com/arjundastp/personalhelper/raw/main/downloads/DayMate.apk)** (version 1.6, about 18 MB, Android 8.0 or newer)
+**[⬇ Download DayMate for Android](https://github.com/arjundastp/personalhelper/raw/main/downloads/DayMate.apk)** (version 1.7, about 18 MB, Android 8.0 or newer)
 
 - Most phones: [`DayMate.apk`](https://github.com/arjundastp/personalhelper/raw/main/downloads/DayMate.apk)
 - Older or very low-cost phones (32-bit): [`DayMate-older-phones.apk`](https://github.com/arjundastp/personalhelper/raw/main/downloads/DayMate-older-phones.apk)
+
+**Updating from version 1.6 or older:** from 1.7 on, DayMate is signed with its own permanent key, so Android needs the old app removed once.
+In the old app use **Settings → Backup → Back up to a file** (1.7+), or note your reminders, then uninstall it, install 1.7, and use **Restore from a file**.
 
 To install: open the downloaded file on your phone. If Android asks, allow your browser or Files app to install apps.
 On first start, tap **Allow** so reminders can ring and show full screen.
@@ -26,6 +29,7 @@ On first start, tap **Allow** so reminders can ring and show full screen.
   **Achievements:** log wins by category and link them to goals; "Share for review" builds a ready-to-paste summary.
   Tabs across the top (Today · Goals · Achievements · Insights · Parked · History); Insights shows completion %, a daily progress chart,
   how tasks ended, an activity calendar, best weekdays and tasks that keep slipping. Code: `lib/sprint/`, `android/.../Sprint.kt`.
+- **Backup & restore:** save everything to a file on your phone and load it back (Settings → Backup).
 - **Start screen:** choose whether the app opens on Reminders, Daily Sprint or the last one used.
 - **Full-screen alert:** turns the screen on and shows over the lock screen, with large **Done** and **Snooze** buttons.
 - **Rings in silent mode:** sound plays on the *alarm* stream, so silent or vibrate mode does not mute it, and Android's Do Not Disturb lets alarms through by default. If you grant DND access, DayMate also gets through "Total silence" and then restores your setting. It can raise the alarm volume to a minimum level while ringing.

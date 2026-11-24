@@ -58,6 +58,12 @@ class Native {
     return s == null ? null : SoundOption.fromJson(jsonDecode(s) as Map<String, dynamic>);
   }
 
+  /// Saves all data to a file the user picks. Returns saved | cancelled | failed.
+  static Future<String?> backup() => _ch.invokeMethod<String>('backup');
+
+  /// Replaces all data with a backup file the user picks. Returns restored | cancelled | invalid | failed.
+  static Future<String?> restore() => _ch.invokeMethod<String>('restore');
+
   static Future<void> shareText(String text) => _ch.invokeMethod('shareText', text);
 
   static Future<String?> takeLaunchAction() => _ch.invokeMethod<String>('takeLaunchAction');

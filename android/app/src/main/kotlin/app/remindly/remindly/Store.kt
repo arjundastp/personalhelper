@@ -110,6 +110,25 @@ object Store {
         persist(ctx)
     }
 
+    // ---------------- backup ----------------
+
+    /** Everything the app stores, as one JSON text (for a backup file the user saves). */
+    fun exportJson(ctx: Context): String = synchronized(lock) {
+        JSONObject(root(ctx).toString()).put("backupOf", "DayMate").put("backupAt", System.currentTimeMillis()).toString(2)
+    }
+
+    /** Replaces all data with a backup. Returns false (and changes nothing) if the text isn't a DayMate backup. */
+    fun importJson(ctx: Context, text: String): Boolean = synchronized(lock) {
+        val obj = runCatching { JSONObject(text) }.getOrNull() ?: return false
+        if (obj.optJSONArray("reminders") == null || !obj.has("settings")) return false
+        obj.remove("backupOf"); obj.remove("backupAt")
+        cache = obj
+        persist(ctx)
+        cache = null // re-read and fill in any missing defaults
+        root(ctx)
+        true
+    }
+
     // ---------------- daily sprint ----------------
 
     /** The Daily Sprint data (settings, tasks, parked list), written by the Flutter side. */

@@ -28,11 +28,14 @@ class MainActivity : FlutterFragmentActivity() {
     private lateinit var channel: MethodChannel
     private val main = Handler(Looper.getMainLooper())
     private var pendingPick: MethodChannel.Result? = null
+    private var pendingBackup: MethodChannel.Result? = null
     private var pendingNotifPermission: MethodChannel.Result? = null
 
     companion object {
         private const val REQ_PICK_AUDIO = 7001
         private const val REQ_NOTIF = 7002
+        private const val REQ_BACKUP = 7003
+        private const val REQ_RESTORE = 7004
     }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
@@ -127,6 +130,26 @@ class MainActivity : FlutterFragmentActivity() {
                 Store.saveSprint(ctx, JSONObject(call.arguments as String))
                 Sprint.arm(ctx)
                 result.success(null)
+            }
+            "backup" -> {
+                pendingBackup?.success(null)
+                pendingBackup = result
+                val name = "DayMate-backup-${java.time.LocalDate.now()}.json"
+                @Suppress("DEPRECATION")
+                startActivityForResult(
+                    Intent(Intent.ACTION_CREATE_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE).setType("application/json")
+                        .putExtra(Intent.EXTRA_TITLE, name),
+                    REQ_BACKUP,
+                )
+            }
+            "restore" -> {
+                pendingBackup?.success(null)
+                pendingBackup = result
+                @Suppress("DEPRECATION")
+                startActivityForResult(
+                    Intent(Intent.ACTION_OPEN_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE).setType("*/*"),
+                    REQ_RESTORE,
+                )
             }
             "shareText" -> {
                 // Only on the user's tap: opens Android's share sheet with the text.
@@ -233,6 +256,27 @@ class MainActivity : FlutterFragmentActivity() {
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         @Suppress("DEPRECATION")
         super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == REQ_BACKUP || requestCode == REQ_RESTORE) {
+            val res = pendingBackup ?: return
+            pendingBackup = null
+            val uri = data?.data
+            if (resultCode != RESULT_OK || uri == null) { res.success("cancelled"); return }
+            val outcome = runCatching {
+                if (requestCode == REQ_BACKUP) {
+                    contentResolver.openOutputStream(uri, "wt")!!.use { it.write(Store.exportJson(this).toByteArray()) }
+                    "saved"
+                } else {
+                    val text = contentResolver.openInputStream(uri)!!.use { it.readBytes().toString(Charsets.UTF_8) }
+                    if (Store.importJson(this, text)) {
+                        // Re-arm every alarm from the restored data, without ringing old ones.
+                        Scheduler.resync(this, ringMissed = false)
+                        "restored"
+                    } else "invalid"
+                }
+            }.getOrElse { "failed" }
+            res.success(outcome)
+            return
+        }
         if (requestCode != REQ_PICK_AUDIO) return
         val res = pendingPick ?: return
         pendingPick = null

@@ -50,3 +50,6 @@ dist/
 
 # Ready-to-install APKs offered for download from the README
 !downloads/*.apk
+
+# Gradle output inside android/
+/android/build/

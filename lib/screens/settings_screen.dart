@@ -229,6 +229,51 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 value: 'No internet. Nothing is sent anywhere.',
               ),
 
+              // ---- backup ----
+              const GroupGap(title: 'Backup'),
+              OptionRow(
+                icon: Icons.save_alt_rounded,
+                title: 'Back up to a file',
+                value: 'Saves reminders, Daily Sprint and settings to your phone storage',
+                onTap: () async {
+                  final r = await Native.backup();
+                  if (!context.mounted || r == 'cancelled') return;
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                    content: Text(r == 'saved' ? 'Backup saved. Keep it somewhere safe.' : 'Could not save the backup.'),
+                  ));
+                },
+              ),
+              OptionRow(
+                icon: Icons.restore_rounded,
+                title: 'Restore from a file',
+                value: 'Replaces everything in the app with the backup',
+                onTap: () async {
+                  final ok = await showDialog<bool>(
+                    context: context,
+                    builder: (c) => AlertDialog(
+                      title: const Text('Restore a backup?'),
+                      content: const Text('Everything currently in DayMate is replaced by the backup.'),
+                      actions: [
+                        TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
+                        TextButton(onPressed: () => Navigator.pop(c, true), child: const Text('Choose file')),
+                      ],
+                    ),
+                  );
+                  if (ok != true) return;
+                  final r = await Native.restore();
+                  if (!context.mounted || r == 'cancelled') return;
+                  await state.refresh();
+                  if (!context.mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                    content: Text(switch (r) {
+                      'restored' => 'Backup restored.',
+                      'invalid' => 'That file is not a DayMate backup.',
+                      _ => 'Could not restore the backup.',
+                    }),
+                  ));
+                },
+              ),
+
               // ---- look ----
               const GroupGap(title: 'Display'),
               OptionRow(
@@ -262,7 +307,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
               _switch(Icons.format_size_rounded, 'Bigger text', 'Easier to read', 'largeText', false),
               const SizedBox(height: 24),
-              Center(child: Text('DayMate 1.6', style: TextStyle(fontSize: 13, color: grey))),
+              Center(child: Text('DayMate 1.7', style: TextStyle(fontSize: 13, color: grey))),
             ],
           ),
         );
