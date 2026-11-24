@@ -28,7 +28,7 @@ On first start, tap **Allow** so reminders can ring and show full screen.
   how tasks ended, an activity calendar, best weekdays and tasks that keep slipping. Code: `lib/sprint/`, `android/.../Sprint.kt`.
 - **Start screen:** choose whether the app opens on Reminders, Daily Sprint or the last one used.
 - **Full-screen alert:** turns the screen on and shows over the lock screen, with large **Done** and **Snooze** buttons.
-- **Rings in silent mode:** sound plays on the *alarm* stream, so silent or vibrate mode does not mute it, and Android's Do Not Disturb lets alarms through by default. If you grant DND access, Remindly also gets through "Total silence" and then restores your setting. It can raise the alarm volume to a minimum level while ringing.
+- **Rings in silent mode:** sound plays on the *alarm* stream, so silent or vibrate mode does not mute it, and Android's Do Not Disturb lets alarms through by default. If you grant DND access, DayMate also gets through "Total silence" and then restores your setting. It can raise the alarm volume to a minimum level while ringing.
 - **No reminder is lost:**
   - Unanswered alerts ring again (the number of times is configurable), then appear as *Missed*.
   - Reminders that fell due while the phone was off ring a few seconds after it starts, with a "Missed while phone was off" message.
