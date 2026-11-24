@@ -245,7 +245,22 @@ void main() {
       await t.pumpAndSettle();
       await expectLater(find.byType(MaterialApp), matchesGoldenFile('goldens/s0_settings_extras.png'));
     });
-    testWidgets('shell reminders', (t) => shot(t, 's1_shell_reminders', const Shell()));
+    testWidgets('shell reminders', (t) async {
+      await shot(t, 's1_shell_reminders', const Shell());
+      await t.tap(find.text('Reminders').last);
+      await t.pumpAndSettle();
+      await expectLater(find.byType(MaterialApp), matchesGoldenFile('goldens/s1_shell_reminders.png'));
+    });
+    testWidgets('home', (t) async {
+      teamJson = {...teamSample(), 'mode': 'endpoint', 'endpointUrl': 'https://x.example.workers.dev', 'readKey': 'r' * 40, 'lastFetched': DateTime.now().millisecondsSinceEpoch};
+      settings['userName'] = 'Arjun';
+      await shot(t, 'h1_home', const Shell());
+      settings.remove('userName');
+      teamJson = {};
+    });
+    testWidgets('home dark, no name', (t) async {
+      await shot(t, 'h2_home_dark', const Shell(), mode: ThemeMode.dark);
+    });
     testWidgets('sprint today', (t) async {
       await shot(t, 's2_sprint_today', const Shell());
       await t.tap(find.text('Daily Sprint').last);

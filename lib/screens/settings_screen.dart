@@ -294,7 +294,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 OptionRow(
                   icon: Icons.open_in_new_rounded,
                   title: 'Open app on',
-                  value: switch (state.setting('startTab', 'reminders')) {
+                  value: switch (state.setting('startTab', 'home')) {
+                    'home' => SprintState.instance.enabled || TeamState.instance.enabled ? 'Home' : 'Reminders',
                     'sprint' => 'Daily Sprint',
                     'team' => 'Team summary',
                     'last' => 'The menu I used last',
@@ -304,18 +305,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     final v = await chooseOne<String>(context,
                         title: 'Open app on',
                         options: [
+                          if (SprintState.instance.enabled || TeamState.instance.enabled) ('home', 'Home'),
                           ('reminders', 'Reminders'),
                           if (SprintState.instance.enabled) ('sprint', 'Daily Sprint'),
                           if (TeamState.instance.enabled) ('team', 'Team summary'),
                           ('last', 'The menu I used last'),
                         ],
-                        current: state.setting('startTab', 'reminders'));
+                        current: state.setting('startTab', 'home'));
                     if (v != null) await state.updateSettings({'startTab': v});
                   },
                 ),
               _switch(Icons.format_size_rounded, 'Bigger text', 'Easier to read', 'largeText', false),
               const SizedBox(height: 24),
-              Center(child: Text('DayMate 1.11', style: TextStyle(fontSize: 13, color: grey))),
+              Center(child: Text('DayMate 1.12', style: TextStyle(fontSize: 13, color: grey))),
             ],
           ),
         );

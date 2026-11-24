@@ -234,4 +234,35 @@ void main() {
     expect(c.partial, 1);
     expect(c.rate, 0.75);
   });
+
+  test('best weekday needs enough tasks and picks the highest completion', () async {
+    final s = fresh(); // Tue 24 Nov 2026
+    // Mondays (16, 23 Nov): 4 of 4 done. Tuesdays (17 Nov): 1 of 4 done. Wednesday 18 Nov: 1 task only.
+    for (final d in ['2026-11-16', '2026-11-23', '2026-11-17']) {
+      for (var k = 0; k < (d == '2026-11-17' ? 4 : 2); k++) {
+        await s.add(d, 'T$k');
+      }
+    }
+    await s.add('2026-11-18', 'Solo');
+    final answers = <int, ReviewAnswer>{};
+    for (final t in s.tasks) {
+      final good = t.date != '2026-11-17' || t.text == 'T0';
+      answers[t.id] = ReviewAnswer(good ? TaskStatus.done : TaskStatus.notDone, move: false);
+    }
+    for (final d in ['2026-11-16', '2026-11-23', '2026-11-17', '2026-11-18']) {
+      await s.review(d, {for (final t in s.tasksFor(d)) t.id: answers[t.id]!});
+    }
+    final best = SprintStats(s).bestWeekday()!;
+    expect(best.weekday, DateTime.monday);
+    expect(best.rate, 1.0);
+    expect(best.tasks, 4);
+    final day = SprintStats(s).bestDay()!;
+    expect(day.day, DateTime(2026, 11, 23)); // ties broken by most done, then the most recent day
+  });
+
+  test('no best weekday or day without history', () {
+    final s = fresh();
+    expect(SprintStats(s).bestWeekday(), isNull);
+    expect(SprintStats(s).bestDay(), isNull);
+  });
 }

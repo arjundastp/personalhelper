@@ -114,6 +114,37 @@ class SprintStats {
     return {for (var w = 1; w <= 7; w++) w: total[w] == 0 ? null : done[w] / total[w]};
   }
 
+  /// The weekday with the highest completion over the last 8 weeks, counting only weekdays with at
+  /// least [minTasks] tasks. Null when there is not enough history yet.
+  ({int weekday, double rate, int tasks})? bestWeekday({int minTasks = 4}) {
+    final done = List.filled(8, 0.0), total = List.filled(8, 0);
+    for (var i = 0; i < 56; i++) {
+      final c = countsFor(today.subtract(Duration(days: i)));
+      done[c.day.weekday] += c.done + c.partial * 0.5;
+      total[c.day.weekday] += c.total;
+    }
+    ({int weekday, double rate, int tasks})? best;
+    for (var w = 1; w <= 7; w++) {
+      if (total[w] < minTasks) continue;
+      final r = done[w] / total[w];
+      if (best == null || r > best.rate || (r == best.rate && total[w] > best.tasks)) best = (weekday: w, rate: r, tasks: total[w]);
+    }
+    return best;
+  }
+
+  /// The single best day in the last [days] days (highest completion, then most tasks done),
+  /// counting days with at least 2 tasks. Today counts only once every task has an answer.
+  DayCounts? bestDay({int days = 30}) {
+    DayCounts? best;
+    for (var i = 0; i < days; i++) {
+      final c = countsFor(today.subtract(Duration(days: i)));
+      if (c.total < 2 || (i == 0 && c.open > 0)) continue;
+      final r = c.rate!;
+      if (best == null || r > best.rate! || (r == best.rate! && c.done > best.done)) best = c;
+    }
+    return best;
+  }
+
   /// Calendar heatmap: [weeks] full weeks (Mon..Sun rows), the last one containing today.
   /// Days after today are null.
   List<List<DayCounts?>> heatmap({int weeks = 5}) {
