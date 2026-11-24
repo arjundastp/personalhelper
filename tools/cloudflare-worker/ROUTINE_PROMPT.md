@@ -5,7 +5,7 @@ Run this as a **scheduled routine** in your company's Claude, with the **Microso
 
 ## Before you paste the prompt
 
-1. **Schedule:** every weekday at about **6:45 AM IST** (DayMate checks when you open it).
+1. **Schedule:** every day at **8:00 AM IST**. Each run summarises the previous day, so weekends are covered too (DayMate checks when you open it).
 2. **Connector:** enable **Microsoft 365** for this routine (only this one is needed).
 3. **Network:** the routine's environment must be allowed to reach your Worker host
    `daymate-summary.<your-subdomain>.workers.dev` (add it to the environment's allowed hosts).

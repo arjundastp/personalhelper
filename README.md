@@ -4,7 +4,7 @@
 
 ## Download
 
-**[⬇ Download DayMate for Android](https://github.com/arjundastp/personalhelper/raw/main/downloads/DayMate.apk)** (version 1.10.1, about 20 MB, Android 8.0 or newer)
+**[⬇ Download DayMate for Android](https://github.com/arjundastp/personalhelper/raw/main/downloads/DayMate.apk)** (version 1.10.2, about 20 MB, Android 8.0 or newer)
 
 - Most phones: [`DayMate.apk`](https://github.com/arjundastp/personalhelper/raw/main/downloads/DayMate.apk)
 - Older or very low-cost phones (32-bit): [`DayMate-older-phones.apk`](https://github.com/arjundastp/personalhelper/raw/main/downloads/DayMate-older-phones.apk)
@@ -30,20 +30,19 @@ On first start, tap **Allow** so reminders can ring and show full screen.
   Tabs across the top (Today · Goals · Achievements · Insights · Parked · History); Insights shows completion %, a daily progress chart,
   how tasks ended, an activity calendar, best weekdays and tasks that keep slipping. Code: `lib/sprint/`, `android/.../Sprint.kt`.
 - **Team summary (optional, Settings → Extras → Add Team summary):** a third bottom tab with a short summary of
-  your Microsoft Teams chats, written on the phone (Gemini Nano via ML Kit GenAI when available, otherwise a simple
-  digest). Summaries are kept 10 days. Four ways to get the chats:
-  - **Teams notifications on this phone** (default): no sign-in, no admin, no network. After you allow Notification
-    access, only Microsoft Teams notifications are kept, privately and for at most 2 days, to make the summary.
-  - **Microsoft Graph · Chat.Read:** sign in with your work account; needs your company's admin approval. Only
-    read requests are made, and Chat.Read cannot write.
-  - **Company Teams MCP server (Agent 365):** only list/get/search tools can be called; everything else is
-    blocked in code (`Team.kt`).
-  - **Summaries from my endpoint (Claude routine):** a scheduled Claude routine reads Teams with Claude's
+  yesterday's Microsoft Teams chats. DayMate keeps summaries 10 days on the phone. Three ways to get them:
+  - **Summaries from my endpoint (Claude routine)** (default): a scheduled Claude routine reads Teams with Claude's
     Microsoft 365 connector (read-only), writes the summary and sends it to your own small Cloudflare Worker;
     DayMate only reads it with a separate read key. Summaries there expire after 2 days. In this mode chats are
     processed in the cloud, not on the phone. Setup and the routine prompt: [`tools/cloudflare-worker/`](tools/cloudflare-worker/).
+  - **Microsoft Graph · Chat.Read:** sign in with your work account; needs your company's admin approval. Only
+    read requests are made, and Chat.Read cannot write. Summarised on the phone (Gemini Nano via ML Kit GenAI when
+    available, otherwise a simple digest).
+  - **Company Teams MCP server (Agent 365):** only list/get/search tools can be called; everything else is
+    blocked in code (`Team.kt`). Summarised on the phone, like Graph.
   For the sign-in options, your company's tenant and app IDs are typed into the app and stored only on the phone,
-  so nothing company-specific is in this repository or the public APK.
+  so nothing company-specific is in this repository or the public APK. DayMate does not read notifications, so
+  Google Play Protect does not block installing the APK.
 - **Backup & restore:** save everything to a file on your phone and load it back (Settings → Backup).
 - **Start screen:** choose whether the app opens on Reminders, Daily Sprint or the last one used.
 - **Full-screen alert:** turns the screen on and shows over the lock screen, with large **Done** and **Snooze** buttons.

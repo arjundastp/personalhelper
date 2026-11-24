@@ -120,10 +120,10 @@ Map<String, dynamic> sprintJson({bool enabled = true}) {
 
 bool sprintOn = false;
 Map<String, dynamic> teamJson = {};
-bool notifAccess = false;
 
 Map<String, dynamic> teamSample() => {
       'enabled': true,
+      'mode': 'graph',
       'tenantId': '00000000-0000-0000-0000-000000000000',
       'clientId': '11111111-1111-1111-1111-111111111111',
       'account': 'you@company.example',
@@ -165,7 +165,6 @@ void mockNative({bool empty = false}) {
       'getSprint' => jsonEncode(sprintJson(enabled: sprintOn)),
       'saveSprint' => null,
       'getTeam' => jsonEncode(teamJson),
-      'teamNotifStatus' => jsonEncode({'access': notifAccess, 'today': 37, 'teamsInstalled': true}),
       'saveTeam' => null,
       'takeLaunchAction' => null,
       'getHistory' => jsonEncode(empty ? [] : history),
@@ -223,13 +222,6 @@ void main() {
     sprintOn = false;
     teamJson = {};
   });
-  testWidgets('team notifications summary', (t) async {
-    teamJson = {...teamSample(), 'mode': 'notifications'};
-    notifAccess = true;
-    await shot(t, 't4_team_notifications', const TeamScreen());
-    notifAccess = false;
-    teamJson = {};
-  });
   testWidgets('team endpoint summary', (t) async {
     final sample = teamSample();
     for (final m in sample['summaries'] as List) {
@@ -237,11 +229,6 @@ void main() {
     }
     teamJson = {...sample, 'mode': 'endpoint', 'endpointUrl': 'https://daymate-summary.example.workers.dev', 'readKey': 'r' * 40, 'lastFetched': DateTime.now().millisecondsSinceEpoch};
     await shot(t, 't5_team_endpoint', const TeamScreen());
-    teamJson = {};
-  });
-  testWidgets('team endpoint setup', (t) async {
-    teamJson = {'enabled': true, 'mode': 'endpoint'};
-    await shot(t, 't6_team_endpoint_setup', const TeamScreen());
     teamJson = {};
   });
   testWidgets('team settings', (t) async {

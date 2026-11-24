@@ -54,6 +54,8 @@ class MainActivity : FlutterFragmentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // The Teams-notification reader was removed; delete any text it collected in older versions.
+        java.io.File(filesDir, "teams_inbox.jsonl").delete()
         consumeIntent(intent)
     }
 
@@ -168,28 +170,6 @@ class MainActivity : FlutterFragmentActivity() {
             "teamSignOut" -> { Thread { Team.signOut(ctx); main.post { result.success(null) } }.start() }
             "teamPull" -> Thread {
                 val out = runCatching { Team.pullYesterday(ctx).put("ok", true) }
-                    .getOrElse { JSONObject().put("ok", false).put("error", it.message ?: it.javaClass.simpleName) }
-                main.post { result.success(out.toString()) }
-            }.start()
-            "teamNotifStatus" -> {
-                val startOfToday = java.time.LocalDate.now().atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
-                result.success(JSONObject()
-                    .put("access", TeamsListener.hasAccess(ctx))
-                    .put("today", TeamsInbox.countSince(ctx, startOfToday))
-                    .put("teamsInstalled", TeamsListener.TEAMS_PACKAGES.any { p -> runCatching { packageManager.getPackageInfo(p, 0) }.isSuccess })
-                    .toString())
-            }
-            "teamNotifSettings" -> {
-                val i = if (Build.VERSION.SDK_INT >= 30) {
-                    Intent(Settings.ACTION_NOTIFICATION_LISTENER_DETAIL_SETTINGS)
-                        .putExtra(Settings.EXTRA_NOTIFICATION_LISTENER_COMPONENT_NAME, android.content.ComponentName(this, TeamsListener::class.java).flattenToString())
-                } else Intent("android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS")
-                runCatching { startActivity(i) }.onFailure { startActivity(Intent("android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS")) }
-                result.success(null)
-            }
-            "teamNotifClear" -> { TeamsInbox.clear(ctx); result.success(null) }
-            "teamPullNotifications" -> Thread {
-                val out = runCatching { Team.pullFromNotifications(ctx, call.arguments as? Boolean ?: false).put("ok", true) }
                     .getOrElse { JSONObject().put("ok", false).put("error", it.message ?: it.javaClass.simpleName) }
                 main.post { result.success(out.toString()) }
             }.start()

@@ -438,62 +438,6 @@ object Team {
             .put("diagnostics", diag)
     }
 
-    /**
-     * Summarises Teams notifications collected on this phone (no sign-in, no network).
-     * [today] = true summarises today so far; otherwise yesterday.
-     */
-    fun pullFromNotifications(ctx: Context, today: Boolean): JSONObject {
-        val started = System.currentTimeMillis()
-        val zone = ZoneId.systemDefault()
-        val day = if (today) LocalDate.now(zone) else LocalDate.now(zone).minusDays(1)
-        val from = day.atStartOfDay(zone).toInstant().toEpochMilli()
-        val to = day.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli()
-        val entries = TeamsInbox.between(ctx, from, to).sortedBy { it.optLong("at") }
-
-        val byChat = LinkedHashMap<String, MutableList<String>>()
-        val actions = JSONArray()
-        for (e in entries) {
-            val chat = e.optString("chat").ifBlank { "Teams" }
-            val sender = e.optStringOrNull("sender")
-            val text = e.optString("text")
-            val line = if (sender != null && sender != chat) "$sender: $text" else text
-            byChat.getOrPut(chat) { ArrayList() }.add(line)
-            // Teams flags mentions and replies to you in the notification itself.
-            val low = "$chat $sender $text".lowercase()
-            if ((low.contains("mentioned you") || low.contains("replied to you") || low.contains("@you")) && actions.length() < 5) {
-                actions.put(JSONObject().put("text", line.take(220)).put("source", chat))
-            }
-        }
-        val chatTexts = byChat.map { (name, lines) -> name to lines.joinToString("\n") }
-        val perChat = JSONArray()
-        byChat.forEach { (name, lines) -> perChat.put(JSONObject().put("name", name).put("count", lines.size)) }
-
-        val (model, summaries) = summarise(ctx, chatTexts)
-        for (i in 0 until perChat.length()) perChat.getJSONObject(i).put("points", JSONArray(summaries.getOrElse(i) { emptyList() }))
-        val highlights = JSONArray()
-        (0 until perChat.length()).map { perChat.getJSONObject(it) }
-            .sortedByDescending { it.optInt("count") }
-            .take(3)
-            .forEach { ch -> ch.optJSONArray("points")?.optString(0)?.takeIf { it.isNotBlank() }?.let { highlights.put("${ch.optString("name")}: $it") } }
-
-        val diag = JSONObject()
-            .put("mode", "Teams notifications on this phone")
-            .put("notificationAccess", TeamsListener.hasAccess(ctx))
-            .put("chatsWithMessages", perChat.length())
-            .put("messages", entries.size)
-            .put("model", model)
-            .put("seconds", (System.currentTimeMillis() - started) / 1000)
-        return JSONObject()
-            .put("date", day.toString())
-            .put("partial", today)
-            .put("generatedAt", System.currentTimeMillis())
-            .put("account", "This phone")
-            .put("highlights", highlights)
-            .put("actions", actions)
-            .put("chats", perChat)
-            .put("diagnostics", diag)
-    }
-
     /** Gemini Nano (ML Kit GenAI) when the phone offers it; otherwise a simple no-AI digest. */
     private fun summarise(ctx: Context, chats: List<Pair<String, String>>): Pair<String, List<List<String>>> {
         if (chats.isEmpty()) return "none" to emptyList()

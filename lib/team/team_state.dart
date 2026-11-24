@@ -14,7 +14,7 @@ class TeamSummary {
   final List<({String text, String source})> actions;
   final List<({String name, int count, List<String> points})> chats;
   final Map<String, dynamic> diagnostics;
-  final bool partial; // "today so far" (notifications mode)
+  final bool partial; // "today so far" (optional, from the endpoint)
 
   TeamSummary.fromJson(Map<String, dynamic> j)
     : date = j['date'] as String,
@@ -49,15 +49,12 @@ class TeamState extends ChangeNotifier {
   String tenantId = '';
   String clientId = '';
 
-  /// 'notifications' (Teams notifications on this phone, no sign-in), 'graph' (Microsoft Graph, Chat.Read)
-  /// or 'mcp' (company Teams MCP server).
-  String mode = 'notifications';
+  /// 'endpoint' (summaries made by a Claude routine, fetched from your Cloudflare Worker),
+  /// 'graph' (Microsoft Graph, Chat.Read) or 'mcp' (company Teams MCP server).
+  String mode = 'endpoint';
   String endpointUrl = ''; // endpoint mode: e.g. https://daymate-summary.<you>.workers.dev
   String readKey = ''; // endpoint mode: READ_KEY of the Worker (stored only on this phone)
   int lastFetched = 0;
-  bool notifAccess = false;
-  bool teamsInstalled = true;
-  int collectedToday = 0;
   String scope = ''; // MCP only; empty = app default (shared Agent 365 Tools, Teams scope)
   String serverUrl = ''; // empty = app default Teams MCP server address
   String? account;
@@ -68,12 +65,10 @@ class TeamState extends ChangeNotifier {
   bool busy = false;
 
   bool get configured => tenantId.isNotEmpty && clientId.isNotEmpty;
-  bool get viaNotifications => mode == 'notifications';
 
-  /// Ready to show summaries: notification access granted, or signed in to Microsoft.
+  /// Ready to show summaries: endpoint set up, or signed in to Microsoft.
   bool get viaEndpoint => mode == 'endpoint';
   bool get ready => switch (mode) {
-    'notifications' => notifAccess,
     'endpoint' => endpointUrl.isNotEmpty && readKey.isNotEmpty,
     _ => configured && account != null,
   };
@@ -105,7 +100,11 @@ class TeamState extends ChangeNotifier {
     enabled = j['enabled'] as bool? ?? false;
     tenantId = j['tenantId'] as String? ?? '';
     clientId = j['clientId'] as String? ?? '';
-    mode = j['mode'] as String? ?? 'notifications';
+    mode = switch (j['mode']) {
+      'graph' => 'graph',
+      'mcp' => 'mcp',
+      _ => 'endpoint', // includes the removed 'notifications' mode
+    };
     endpointUrl = j['endpointUrl'] as String? ?? '';
     readKey = j['readKey'] as String? ?? '';
     lastFetched = (j['lastFetched'] as num?)?.toInt() ?? 0;
@@ -123,57 +122,12 @@ class TeamState extends ChangeNotifier {
     try {
       fromJson(jsonDecode(await _ch.invokeMethod<String>('getTeam') ?? '{}') as Map<String, dynamic>);
     } catch (_) {}
-    await refreshNotifications(notify: false);
     notifyListeners();
-  }
-
-  // ---------------- notifications mode ----------------
-
-  Future<void> refreshNotifications({bool notify = true}) async {
-    try {
-      final r = jsonDecode(await _ch.invokeMethod<String>('teamNotifStatus') ?? '{}') as Map<String, dynamic>;
-      notifAccess = r['access'] as bool? ?? false;
-      collectedToday = (r['today'] as num?)?.toInt() ?? 0;
-      teamsInstalled = r['teamsInstalled'] as bool? ?? true;
-    } catch (_) {}
-    if (notify) notifyListeners();
   }
 
   Future<void> setMode(String m) async {
     mode = m;
     await save();
-  }
-
-  /// Opens Android's "Notification access" page for DayMate.
-  Future<void> openNotificationAccess() async {
-    await setMode('notifications');
-    await _ch.invokeMethod('teamNotifSettings');
-  }
-
-  /// Summarises collected Teams notifications (no network). No daily limit: it is all on the phone.
-  Future<String?> summariseNotifications({required bool today}) async {
-    busy = true;
-    lastError = null;
-    notifyListeners();
-    try {
-      final r = jsonDecode(await _ch.invokeMethod<String>('teamPullNotifications', today) ?? '{}') as Map<String, dynamic>;
-      if (r['ok'] != true) {
-        lastError = r['error']?.toString() ?? 'Something went wrong';
-        return lastError;
-      }
-      lastDiagnostics = Map<String, dynamic>.from((r['diagnostics'] as Map?) ?? const {});
-      r.remove('ok');
-      _summaries.removeWhere((s) => s['date'] == r['date']);
-      _summaries.add(r);
-      _prune();
-      return null;
-    } catch (e) {
-      lastError = '$e';
-      return lastError;
-    } finally {
-      busy = false;
-      await save();
-    }
   }
 
   // ---------------- endpoint mode (Claude routine → Cloudflare Worker → DayMate) ----------------
@@ -237,13 +191,6 @@ class TeamState extends ChangeNotifier {
     if (!enabled || !viaEndpoint || busy) return;
     if (DateTime.now().millisecondsSinceEpoch - lastFetched < 30 * 60 * 1000) return;
     await fetchFromEndpoint();
-  }
-
-  Future<void> clearCollected() async {
-    try {
-      await _ch.invokeMethod('teamNotifClear');
-    } catch (_) {}
-    await refreshNotifications();
   }
 
   Future<void> save() async {
@@ -361,10 +308,7 @@ class TeamState extends ChangeNotifier {
     lastError = null;
     _summaries.clear();
     enabled = false;
-    mode = 'notifications';
-    try {
-      await _ch.invokeMethod('teamNotifClear');
-    } catch (_) {}
+    mode = 'endpoint';
     await save();
   }
 
@@ -375,11 +319,7 @@ class TeamState extends ChangeNotifier {
       'DayMate Team summary – connection check',
       'Date: ${lastTestPull ?? '-'}',
       'Result: ${lastError == null ? 'OK' : 'Error – $lastError'}',
-      'Connection: ${viaEndpoint
-          ? 'Endpoint ${Uri.tryParse(endpointUrl)?.host ?? '-'}'
-          : viaNotifications
-          ? 'Teams notifications on this phone (access ${notifAccess ? 'on' : 'off'}, $collectedToday collected today)'
-          : (mode == 'mcp' ? 'Teams MCP server · permission ${scope.isEmpty ? 'default' : scope} · server ${serverUrl.isEmpty ? 'default' : 'custom'}' : 'Microsoft Graph (Chat.Read)')}',
+      'Connection: ${viaEndpoint ? 'Endpoint ${Uri.tryParse(endpointUrl)?.host ?? '-'}' : (mode == 'mcp' ? 'Teams MCP server · permission ${scope.isEmpty ? 'default' : scope} · server ${serverUrl.isEmpty ? 'default' : 'custom'}' : 'Microsoft Graph (Chat.Read)')}',
       'Tools on server: ${d['toolsTotal'] ?? '-'} (read-only allowed: ${(d['toolsAllowed'] as List?)?.length ?? '-'}, blocked: ${d['toolsBlocked'] ?? '-'})',
       'Allowed tools: ${(d['toolsAllowed'] as List?)?.join(', ') ?? '-'}',
       'Chat tool: ${d['chatTool'] ?? '-'} · Message tool: ${d['messageTool'] ?? '-'}',
