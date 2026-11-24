@@ -81,6 +81,53 @@ class _ShellState extends State<Shell> {
     }
   }
 
+  /// The bottom bar shows at most [_maxSlots] items. With more menus, the last slot becomes "More",
+  /// which lists the rest (new menus go there, so the bar stays the same).
+  static const _maxSlots = 4;
+
+  ({IconData icon, IconData selected, String label}) _info(String t) => switch (t) {
+    'home' => (icon: Icons.home_outlined, selected: Icons.home_rounded, label: 'Home'),
+    'sprint' => (icon: Icons.assignment_outlined, selected: Icons.assignment_turned_in_rounded, label: 'Sprint'),
+    'team' => (icon: Icons.forum_outlined, selected: Icons.forum_rounded, label: 'Teams'),
+    _ => (icon: Icons.notifications_none_rounded, selected: Icons.notifications_rounded, label: 'Reminders'),
+  };
+
+  /// Full names, used in the More list.
+  String _title(String t) => switch (t) {
+    'home' => 'Home',
+    'sprint' => 'Daily Sprint',
+    'team' => 'Team summary',
+    _ => 'Reminders',
+  };
+
+  Future<void> _openMore(List<String> rest) async {
+    final picked = await showModalBottomSheet<String>(
+      context: context,
+      builder: (c) => SafeArea(
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          const Padding(
+            padding: EdgeInsets.fromLTRB(24, 0, 24, 6),
+            child: Align(alignment: Alignment.centerLeft, child: Text('More', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600))),
+          ),
+          for (final t in rest)
+            ListTile(
+              leading: Icon(t == tab ? _info(t).selected : _info(t).icon),
+              title: Text(_title(t)),
+              selected: t == tab,
+              onTap: () => Navigator.pop(c, t),
+            ),
+          const SizedBox(height: 6),
+        ]),
+      ),
+    );
+    if (picked != null) _select(picked);
+  }
+
+  Widget _icon(String t, bool selected, int open) {
+    final icon = Icon(selected ? _info(t).selected : _info(t).icon);
+    return t == 'sprint' ? Badge(isLabelVisible: open > 0, label: Text('$open'), child: icon) : icon;
+  }
+
   @override
   Widget build(BuildContext context) {
     final tabs = _tabs;
@@ -97,36 +144,31 @@ class _ShellState extends State<Shell> {
             _ => const HomeScreen(),
           },
       ]),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: index,
-        onDestinationSelected: (i) => _select(tabs[i]),
-        destinations: [
-          for (final t in tabs)
-            switch (t) {
-              'sprint' => NavigationDestination(
-                  icon: Badge(isLabelVisible: open > 0, label: Text('$open'), child: const Icon(Icons.assignment_outlined)),
-                  selectedIcon:
-                      Badge(isLabelVisible: open > 0, label: Text('$open'), child: const Icon(Icons.assignment_turned_in_rounded)),
-                  label: 'Daily Sprint',
+      bottomNavigationBar: Builder(builder: (context) {
+        final overflow = tabs.length > _maxSlots;
+        final shown = overflow ? tabs.take(_maxSlots - 1).toList() : tabs;
+        final rest = overflow ? tabs.skip(_maxSlots - 1).toList() : const <String>[];
+        final selected = shown.contains(tab) ? shown.indexOf(tab) : shown.length; // "More" holds the rest
+        final mq = MediaQuery.of(context);
+        // Keep the bar tidy with "Bigger text": labels grow a little, never wrap or overflow.
+        return MediaQuery(
+          data: mq.copyWith(textScaler: mq.textScaler.clamp(maxScaleFactor: 1.1)),
+          child: NavigationBar(
+            selectedIndex: selected,
+            labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+            onDestinationSelected: (i) => i < shown.length ? _select(shown[i]) : _openMore(rest),
+            destinations: [
+              for (final t in shown)
+                NavigationDestination(icon: _icon(t, false, open), selectedIcon: _icon(t, true, open), label: _info(t).label, tooltip: _title(t)),
+              if (overflow)
+                NavigationDestination(
+                  icon: Badge(isLabelVisible: rest.contains('sprint') && open > 0, child: const Icon(Icons.more_horiz_rounded)),
+                  label: 'More',
                 ),
-              'home' => const NavigationDestination(
-                  icon: Icon(Icons.home_outlined),
-                  selectedIcon: Icon(Icons.home_rounded),
-                  label: 'Home',
-                ),
-              'team' => const NavigationDestination(
-                  icon: Icon(Icons.forum_outlined),
-                  selectedIcon: Icon(Icons.forum_rounded),
-                  label: 'Team summary',
-                ),
-              _ => const NavigationDestination(
-                  icon: Icon(Icons.notifications_none_rounded),
-                  selectedIcon: Icon(Icons.notifications_rounded),
-                  label: 'Reminders',
-                ),
-            },
-        ],
-      ),
+            ],
+          ),
+        );
+      }),
     );
   }
 }

@@ -132,15 +132,15 @@ ThemeData buildTheme(Brightness b, {String? fontFamily}) {
       backgroundColor: scheme.surface,
       surfaceTintColor: Colors.transparent,
       indicatorColor: light ? const Color(0xFFD9FDD3) : const Color(0xFF103529),
-      height: 66,
+      height: 62,
       labelTextStyle: WidgetStateProperty.resolveWith((s) => TextStyle(
             fontFamily: fontFamily,
-            fontSize: 13.5,
+            fontSize: 12,
             fontWeight: s.contains(WidgetState.selected) ? FontWeight.w700 : FontWeight.w500,
             color: scheme.onSurface,
           )),
       iconTheme: WidgetStateProperty.resolveWith((s) => IconThemeData(
-            size: 24,
+            size: 21,
             color: s.contains(WidgetState.selected) ? (light ? const Color(0xFF005C4B) : AppColors.accent) : scheme.onSurfaceVariant,
           )),
     ),

@@ -216,7 +216,7 @@ void main() {
     teamJson = teamSample();
     sprintOn = true;
     await shot(t, 't2_team_summary', const Shell());
-    await t.tap(find.text('Team summary').last);
+    await t.tap(find.text('Teams').last);
     await t.pumpAndSettle();
     await expectLater(find.byType(MaterialApp), matchesGoldenFile('goldens/t2_team_summary.png'));
     sprintOn = false;
@@ -263,7 +263,7 @@ void main() {
     });
     testWidgets('sprint today', (t) async {
       await shot(t, 's2_sprint_today', const Shell());
-      await t.tap(find.text('Daily Sprint').last);
+      await t.tap(find.text('Sprint').last);
       await t.pumpAndSettle();
       await expectLater(find.byType(MaterialApp), matchesGoldenFile('goldens/s2_sprint_today.png'));
     });
@@ -276,7 +276,7 @@ void main() {
     });
     Future<void> sprintTab(WidgetTester t, String name, String tab, {ThemeMode mode = ThemeMode.light, bool thirty = false}) async {
       await shot(t, name, const Shell(), mode: mode);
-      await t.tap(find.text('Daily Sprint').last);
+      await t.tap(find.text('Sprint').last);
       await t.pumpAndSettle();
       await t.ensureVisible(find.text(tab));
       await t.pumpAndSettle();
