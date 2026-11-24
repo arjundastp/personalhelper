@@ -8,6 +8,7 @@ import '../widgets.dart';
 import 'achievements_view.dart';
 import 'goals_view.dart';
 import 'insights_view.dart';
+import 'notes_view.dart';
 import 'parked_screen.dart';
 import 'review_screen.dart';
 import 'sprint_history_screen.dart';
@@ -27,7 +28,7 @@ class SprintScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final sprint = SprintState.instance;
     return DefaultTabController(
-      length: 6,
+      length: 7,
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Daily Sprint'),
@@ -50,6 +51,7 @@ class SprintScreen extends StatelessWidget {
               const Tab(height: 42, text: 'GOALS'),
               const Tab(height: 42, text: 'ACHIEVEMENTS'),
               const Tab(height: 42, text: 'INSIGHTS'),
+              const Tab(height: 42, text: 'NOTES'),
               Tab(
                 height: 42,
                 child: ListenableBuilder(
@@ -77,6 +79,7 @@ class SprintScreen extends StatelessWidget {
           GoalsView(),
           AchievementsView(),
           InsightsView(),
+          NotesView(),
           ParkedView(),
           SprintHistoryView(),
         ]),

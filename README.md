@@ -4,7 +4,7 @@
 
 ## Download
 
-**[⬇ Download DayMate for Android](https://github.com/arjundastp/personalhelper/raw/main/downloads/DayMate.apk)** (version 1.13, about 20 MB, Android 8.0 or newer)
+**[⬇ Download DayMate for Android](https://github.com/arjundastp/personalhelper/raw/main/downloads/DayMate.apk)** (version 1.14, about 20 MB, Android 8.0 or newer)
 
 - Most phones: [`DayMate.apk`](https://github.com/arjundastp/personalhelper/raw/main/downloads/DayMate.apk)
 - Older or very low-cost phones (32-bit): [`DayMate-older-phones.apk`](https://github.com/arjundastp/personalhelper/raw/main/downloads/DayMate-older-phones.apk)
@@ -29,7 +29,7 @@ On first start, tap **Allow** so reminders can ring and show full screen.
   leave taken, holidays and days reported for the period, the month and the year.
   **Goals:** long-term goals with a progress bar, target date and dated progress notes.
   **Achievements:** log wins by category and link them to goals; "Share for review" builds a ready-to-paste summary.
-  Tabs across the top (Today · Goals · Achievements · Insights · Parked · History); Insights shows completion %, a daily progress chart,
+  Tabs across the top (Today · Goals · Achievements · Insights · Notes · Parked · History); Insights shows completion %, a daily progress chart,
   how tasks ended, an activity calendar, best weekdays and tasks that keep slipping. Code: `lib/sprint/`, `android/.../Sprint.kt`.
 - **Team summary (optional, Settings → Extras → Add Team summary):** a third bottom tab with a short summary of
   yesterday's Microsoft Teams chats. DayMate keeps summaries 10 days on the phone. Three ways to get them:
@@ -50,6 +50,10 @@ On first start, tap **Allow** so reminders can ring and show full screen.
   evening check-in, goals close to their target date), **Your most efficient day** (the weekday you finish the most
   tasks on, over the last 8 weeks, and your best day this month) and **Today at a glance** (next reminder, today's
   tasks, Teams summary). Tap the greeting to set your name.
+- **Notes (Daily Sprint › Notes):** dated notes with a title, typed text and handwriting pages. Write with the
+  S Pen (pressure-sensitive); hold the pen's side button, use its eraser end or pick the Eraser to erase just
+  what you touch. Once the pen is used, fingers and palms don't draw. Colours, highlighter, three sizes,
+  undo/redo and extra pages. Stored on the phone and included in backups.
 - **Home-screen widget:** a compact Home page on your phone's home screen: greeting, what needs your attention,
   next reminder, today's tasks and Teams. Add it from Settings → Home screen widget (or the card on Home), or
   long-press the home screen → Widgets → DayMate. It updates when your data changes and every 30 minutes.

@@ -324,7 +324,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
               _switch(Icons.format_size_rounded, 'Bigger text', 'Easier to read', 'largeText', false),
               const SizedBox(height: 24),
-              Center(child: Text('DayMate 1.13', style: TextStyle(fontSize: 13, color: grey))),
+              Center(child: Text('DayMate 1.14', style: TextStyle(fontSize: 13, color: grey))),
             ],
           ),
         );

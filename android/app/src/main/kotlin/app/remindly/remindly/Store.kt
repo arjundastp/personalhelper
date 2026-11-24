@@ -115,7 +115,8 @@ object Store {
 
     /** Everything the app stores, as one JSON text (for a backup file the user saves). */
     fun exportJson(ctx: Context): String = synchronized(lock) {
-        JSONObject(root(ctx).toString()).put("backupOf", "DayMate").put("backupAt", System.currentTimeMillis()).toString(2)
+        JSONObject(root(ctx).toString()).put("backupOf", "DayMate").put("backupAt", System.currentTimeMillis())
+            .put("notes", Notes.export(ctx)).toString(2)
     }
 
     /** Replaces all data with a backup. Returns false (and changes nothing) if the text isn't a DayMate backup. */
@@ -123,6 +124,8 @@ object Store {
         val obj = runCatching { JSONObject(text) }.getOrNull() ?: return false
         if (obj.optJSONArray("reminders") == null || !obj.has("settings")) return false
         obj.remove("backupOf"); obj.remove("backupAt")
+        obj.optJSONObject("notes")?.let { Notes.import(ctx, it) }
+        obj.remove("notes")
         cache = obj
         persist(ctx)
         cache = null // re-read and fill in any missing defaults

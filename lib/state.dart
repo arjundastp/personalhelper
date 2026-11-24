@@ -4,6 +4,7 @@ import 'package:material_ui/material_ui.dart';
 
 import 'models.dart';
 import 'native.dart';
+import 'sprint/notes_state.dart';
 import 'sprint/sprint_state.dart';
 import 'team/team_state.dart';
 
@@ -54,6 +55,7 @@ class AppState extends ChangeNotifier {
       permissions = results[3] as Map<String, bool>;
       await SprintState.instance.load();
       await TeamState.instance.load();
+      if (NotesState.instance.loaded) await NotesState.instance.load();
       pendingOpen = await Native.takeLaunchAction() ?? pendingOpen;
     } catch (_) {}
     loaded = true;

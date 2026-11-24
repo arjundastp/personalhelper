@@ -173,6 +173,15 @@ class MainActivity : FlutterFragmentActivity() {
                     .getOrElse { JSONObject().put("ok", false).put("error", it.message ?: it.javaClass.simpleName) }
                 main.post { result.success(out.toString()) }
             }.start()
+            "notesGet" -> result.success(Notes.index(ctx))
+            "notesSave" -> { Notes.saveIndex(ctx, call.arguments as String); result.success(null) }
+            "inkGet" -> result.success(Notes.ink(ctx, (call.arguments as Number).toInt()))
+            "inkSave" -> {
+                val a = call.arguments as Map<*, *>
+                Notes.saveInk(ctx, (a["id"] as Number).toInt(), a["json"] as String)
+                result.success(null)
+            }
+            "inkDelete" -> { Notes.deleteInk(ctx, (call.arguments as Number).toInt()); result.success(null) }
             "pinWidget" -> result.success(runCatching { DayMateWidget.requestPin(ctx) }.getOrDefault(false))
             "widgetCount" -> result.success(DayMateWidget.count(ctx))
             "takeLaunchAction" -> { result.success(launchAction); launchAction = null }

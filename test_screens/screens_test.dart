@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 // Renders the main screens with sample data into PNGs for visual review.
 // Run: flutter test test_screens --update-goldens   (images land in test_screens/goldens/)
 import 'dart:convert';
@@ -15,6 +16,8 @@ import 'package:remindly/screens/home_screen.dart';
 import 'package:remindly/screens/settings_screen.dart';
 import 'package:remindly/screens/sound_picker_screen.dart';
 import 'package:remindly/screens/shell.dart';
+import 'package:remindly/sprint/note_editor.dart';
+import 'package:remindly/sprint/notes_state.dart';
 import 'package:remindly/sprint/review_screen.dart';
 import 'package:remindly/sprint/sprint_settings_screen.dart';
 import 'package:remindly/state.dart';
@@ -121,6 +124,49 @@ Map<String, dynamic> sprintJson({bool enabled = true}) {
 bool sprintOn = false;
 Map<String, dynamic> teamJson = {};
 
+List<Map<String, dynamic>> get sampleNotes => [
+      {'id': 1, 'date': iso(now), 'title': 'Pulse release plan', 'text': 'Freeze on Wednesday 6 PM.\nAsk Ravi about the payment fix.', 'pages': 1, 'hasInk': true,
+       'updatedAt': at(const Duration(hours: -1))},
+      {'id': 2, 'date': iso(now), 'title': 'Call with vendor', 'text': 'Laptop delivery next week. Invoice to finance.', 'pages': 1, 'hasInk': false,
+       'updatedAt': at(const Duration(hours: -3))},
+      {'id': 3, 'date': iso(ago(2)), 'title': '', 'text': '', 'pages': 2, 'hasInk': true, 'updatedAt': at(const Duration(days: -2))},
+    ];
+
+/// Handwriting-like strokes: looping "words" on ruled lines, an underline, a box, an arrow, a tick and a highlight.
+List<List<Map<String, dynamic>>> sampleInk(int id) {
+  Map<String, dynamic> stroke(List<(double, double)> pts, {String c = 'ink', double w = 0.006, bool pressure = true}) => {
+        'c': c,
+        'w': w,
+        'p': [for (final p in pts) ...[p.$1, p.$2]],
+        if (pressure) 'f': [for (var i = 0; i < pts.length; i++) 40 + (30 * math.sin(i / 3)).round()],
+      };
+  List<(double, double)> word(double x, double y, double len, {int seed = 1}) => [
+        for (var t = 0.0; t <= len; t += 0.004)
+          (x + t + 0.012 * math.cos(t * 95 + seed), y - 0.018 * math.sin(t * 95 + seed).abs() * (1 + 0.5 * math.sin(t * 13 + seed))),
+      ];
+  final lines = [0.19, 0.265, 0.34, 0.415];
+  final page = <Map<String, dynamic>>[
+    stroke([for (var t = 0.0; t <= 1; t += 0.05) (0.06 + 0.34 * t, lines[0] + 0.022)], c: 'marker', w: 0.04, pressure: false),
+    stroke(word(0.07, lines[0], 0.13, seed: 1)),
+    stroke(word(0.23, lines[0], 0.16, seed: 2)),
+    stroke([for (var t = 0.0; t <= 1; t += 0.05) (0.07 + 0.33 * t, lines[0] + 0.012 + 0.003 * math.sin(t * 9))], c: 'blue', w: 0.004),
+    stroke(word(0.07, lines[1], 0.2, seed: 3)),
+    stroke(word(0.30, lines[1], 0.12, seed: 4)),
+    stroke(word(0.45, lines[1], 0.18, seed: 5)),
+    stroke([(0.07, lines[2] - 0.01), (0.085, lines[2]), (0.11, lines[2] - 0.03)], c: 'green', w: 0.007),
+    stroke(word(0.14, lines[2], 0.24, seed: 6)),
+    stroke(word(0.41, lines[2], 0.1, seed: 7)),
+    stroke([(0.07, lines[3] - 0.012), (0.09, lines[3] - 0.012)], w: 0.007),
+    stroke(word(0.12, lines[3], 0.15, seed: 8)),
+    stroke(word(0.30, lines[3], 0.2, seed: 9)),
+    stroke([(0.60, 0.50), (0.92, 0.50), (0.92, 0.70), (0.60, 0.70), (0.60, 0.50)], c: 'red', w: 0.005),
+    stroke(word(0.64, 0.61, 0.22, seed: 10), c: 'red'),
+    stroke([for (var t = 0.0; t <= 1; t += 0.05) (0.30 + 0.28 * t, 0.53 + 0.05 * math.sin(t * 3.1))], w: 0.005),
+    stroke([(0.55, 0.555), (0.585, 0.585), (0.55, 0.605)], w: 0.005),
+  ];
+  return id == 3 ? [page.sublist(4), page.sublist(0, 4)] : [page];
+}
+
 Map<String, dynamic> teamSample() => {
       'enabled': true,
       'mode': 'graph',
@@ -167,6 +213,9 @@ void mockNative({bool empty = false}) {
       'getTeam' => jsonEncode(teamJson),
       'saveTeam' => null,
       'takeLaunchAction' => null,
+      'notesGet' => jsonEncode(sampleNotes),
+      'inkGet' => jsonEncode(sampleInk(call.arguments as int)),
+      'widgetCount' => 1,
       'getHistory' => jsonEncode(empty ? [] : history),
       'permissions' => jsonEncode(perms),
       'deviceInfo' => jsonEncode({'manufacturer': 'Xiaomi', 'sdk': 35}),
@@ -289,6 +338,19 @@ void main() {
       await expectLater(find.byType(MaterialApp), matchesGoldenFile('goldens/$name.png'));
     }
     testWidgets('parked', (t) => sprintTab(t, 's4_parked', 'PARKED'));
+    testWidgets('notes', (t) => sprintTab(t, 'n1_notes', 'NOTES'));
+    testWidgets('note editor', (t) async {
+      await NotesState.instance.load();
+      await shot(t, 'n2_note_editor', NoteEditorScreen(note: NotesState.instance.byId(1)!));
+      await t.pumpAndSettle();
+      await expectLater(find.byType(MaterialApp), matchesGoldenFile('goldens/n2_note_editor.png'));
+    });
+    testWidgets('note editor dark', (t) async {
+      await NotesState.instance.load();
+      await shot(t, 'n3_note_editor_dark', NoteEditorScreen(note: NotesState.instance.byId(1)!), mode: ThemeMode.dark);
+      await t.pumpAndSettle();
+      await expectLater(find.byType(MaterialApp), matchesGoldenFile('goldens/n3_note_editor_dark.png'));
+    });
     testWidgets('history', (t) => sprintTab(t, 's5_history', 'HISTORY'));
     testWidgets('insights', (t) => sprintTab(t, 's7_insights', 'INSIGHTS'));
     testWidgets('goals', (t) => sprintTab(t, 'g1_goals', 'GOALS'));
