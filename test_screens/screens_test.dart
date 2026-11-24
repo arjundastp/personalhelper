@@ -230,6 +230,20 @@ void main() {
     notifAccess = false;
     teamJson = {};
   });
+  testWidgets('team endpoint summary', (t) async {
+    final sample = teamSample();
+    for (final m in sample['summaries'] as List) {
+      (m as Map)['diagnostics'] = {'messages': 153, 'model': 'Claude routine'};
+    }
+    teamJson = {...sample, 'mode': 'endpoint', 'endpointUrl': 'https://daymate-summary.example.workers.dev', 'readKey': 'r' * 40, 'lastFetched': DateTime.now().millisecondsSinceEpoch};
+    await shot(t, 't5_team_endpoint', const TeamScreen());
+    teamJson = {};
+  });
+  testWidgets('team endpoint setup', (t) async {
+    teamJson = {'enabled': true, 'mode': 'endpoint'};
+    await shot(t, 't6_team_endpoint_setup', const TeamScreen());
+    teamJson = {};
+  });
   testWidgets('team settings', (t) async {
     teamJson = teamSample();
     await shot(t, 't3_team_settings', const TeamSettingsScreen());

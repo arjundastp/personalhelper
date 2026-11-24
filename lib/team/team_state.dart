@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
@@ -19,9 +20,7 @@ class TeamSummary {
     : date = j['date'] as String,
       generatedAt = (j['generatedAt'] as num?)?.toInt() ?? 0,
       highlights = ((j['highlights'] as List?) ?? const []).map((e) => e.toString()).toList(),
-      actions = ((j['actions'] as List?) ?? const [])
-          .map((e) => (text: (e as Map)['text']?.toString() ?? '', source: e['source']?.toString() ?? ''))
-          .toList(),
+      actions = ((j['actions'] as List?) ?? const []).map((e) => (text: (e as Map)['text']?.toString() ?? '', source: e['source']?.toString() ?? '')).toList(),
       chats = ((j['chats'] as List?) ?? const [])
           .map(
             (e) => (
@@ -53,6 +52,9 @@ class TeamState extends ChangeNotifier {
   /// 'notifications' (Teams notifications on this phone, no sign-in), 'graph' (Microsoft Graph, Chat.Read)
   /// or 'mcp' (company Teams MCP server).
   String mode = 'notifications';
+  String endpointUrl = ''; // endpoint mode: e.g. https://daymate-summary.<you>.workers.dev
+  String readKey = ''; // endpoint mode: READ_KEY of the Worker (stored only on this phone)
+  int lastFetched = 0;
   bool notifAccess = false;
   bool teamsInstalled = true;
   int collectedToday = 0;
@@ -69,7 +71,12 @@ class TeamState extends ChangeNotifier {
   bool get viaNotifications => mode == 'notifications';
 
   /// Ready to show summaries: notification access granted, or signed in to Microsoft.
-  bool get ready => viaNotifications ? notifAccess : configured && account != null;
+  bool get viaEndpoint => mode == 'endpoint';
+  bool get ready => switch (mode) {
+    'notifications' => notifAccess,
+    'endpoint' => endpointUrl.isNotEmpty && readKey.isNotEmpty,
+    _ => configured && account != null,
+  };
   bool get signedIn => account != null;
   String get today => isoDate(DateTime.now());
   bool get canTestToday => lastTestPull != today;
@@ -82,6 +89,9 @@ class TeamState extends ChangeNotifier {
     'tenantId': tenantId,
     'clientId': clientId,
     'mode': mode,
+    'endpointUrl': endpointUrl,
+    'readKey': readKey,
+    'lastFetched': lastFetched,
     'scope': scope,
     'serverUrl': serverUrl,
     'account': account,
@@ -96,6 +106,9 @@ class TeamState extends ChangeNotifier {
     tenantId = j['tenantId'] as String? ?? '';
     clientId = j['clientId'] as String? ?? '';
     mode = j['mode'] as String? ?? 'notifications';
+    endpointUrl = j['endpointUrl'] as String? ?? '';
+    readKey = j['readKey'] as String? ?? '';
+    lastFetched = (j['lastFetched'] as num?)?.toInt() ?? 0;
     scope = j['scope'] as String? ?? '';
     serverUrl = j['serverUrl'] as String? ?? '';
     account = j['account'] as String?;
@@ -161,6 +174,69 @@ class TeamState extends ChangeNotifier {
       busy = false;
       await save();
     }
+  }
+
+  // ---------------- endpoint mode (Claude routine → Cloudflare Worker → DayMate) ----------------
+
+  static String? checkEndpoint(String url) {
+    final u = Uri.tryParse(url.trim());
+    if (u == null || u.scheme != 'https' || u.host.isEmpty) return 'The address must start with https://';
+    return null;
+  }
+
+  /// Saves the endpoint address and read key, then tries a fetch. Returns null on success.
+  Future<String?> connectEndpoint(String url, String key) async {
+    endpointUrl = url.trim().replaceAll(RegExp(r'/+$'), '');
+    readKey = key.trim();
+    mode = 'endpoint';
+    await save();
+    return fetchFromEndpoint();
+  }
+
+  /// Downloads the last [keepDays] days of summaries from the endpoint (read key only).
+  Future<String?> fetchFromEndpoint() async {
+    if (endpointUrl.isEmpty || readKey.isEmpty) return 'Endpoint not set up';
+    busy = true;
+    lastError = null;
+    notifyListeners();
+    final client = HttpClient()..connectionTimeout = const Duration(seconds: 20);
+    try {
+      final since = isoDate(DateTime.now().subtract(const Duration(days: keepDays)));
+      final req = await client.getUrl(Uri.parse('$endpointUrl/summaries?since=$since'));
+      req.headers.set(HttpHeaders.authorizationHeader, 'Bearer $readKey');
+      req.headers.set(HttpHeaders.acceptHeader, 'application/json');
+      final res = await req.close().timeout(const Duration(seconds: 30));
+      final body = await res.transform(utf8.decoder).join();
+      if (res.statusCode == 401) throw 'The read key was not accepted (401). Check READ_KEY.';
+      if (res.statusCode != 200) {
+        throw 'Endpoint answered ${res.statusCode}: ${body.length > 160 ? body.substring(0, 160) : body}';
+      }
+      final list = (jsonDecode(body) as List).whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
+      for (final s in list) {
+        if (s['date'] is! String) continue;
+        s['generatedAt'] ??= s['receivedAt'] ?? DateTime.now().millisecondsSinceEpoch;
+        _summaries.removeWhere((x) => x['date'] == s['date']);
+        _summaries.add(s);
+      }
+      _prune();
+      lastFetched = DateTime.now().millisecondsSinceEpoch;
+      if (list.isNotEmpty) lastDiagnostics = Map<String, dynamic>.from((list.first['diagnostics'] as Map?) ?? const {});
+      return null;
+    } catch (e) {
+      lastError = e is String ? e : 'Could not reach the endpoint: $e';
+      return lastError;
+    } finally {
+      client.close(force: true);
+      busy = false;
+      await save();
+    }
+  }
+
+  /// Fetch when the tab opens, at most every 30 minutes.
+  Future<void> maybeAutoFetch() async {
+    if (!enabled || !viaEndpoint || busy) return;
+    if (DateTime.now().millisecondsSinceEpoch - lastFetched < 30 * 60 * 1000) return;
+    await fetchFromEndpoint();
   }
 
   Future<void> clearCollected() async {
@@ -277,6 +353,9 @@ class TeamState extends ChangeNotifier {
     clientId = '';
     scope = '';
     serverUrl = '';
+    endpointUrl = '';
+    readKey = '';
+    lastFetched = 0;
     lastTestPull = null;
     lastDiagnostics = {};
     lastError = null;
@@ -296,7 +375,11 @@ class TeamState extends ChangeNotifier {
       'DayMate Team summary – connection check',
       'Date: ${lastTestPull ?? '-'}',
       'Result: ${lastError == null ? 'OK' : 'Error – $lastError'}',
-      'Connection: ${viaNotifications ? 'Teams notifications on this phone (access ${notifAccess ? 'on' : 'off'}, $collectedToday collected today)' : (mode == 'mcp' ? 'Teams MCP server · permission ${scope.isEmpty ? 'default' : scope} · server ${serverUrl.isEmpty ? 'default' : 'custom'}' : 'Microsoft Graph (Chat.Read)')}',
+      'Connection: ${viaEndpoint
+          ? 'Endpoint ${Uri.tryParse(endpointUrl)?.host ?? '-'}'
+          : viaNotifications
+          ? 'Teams notifications on this phone (access ${notifAccess ? 'on' : 'off'}, $collectedToday collected today)'
+          : (mode == 'mcp' ? 'Teams MCP server · permission ${scope.isEmpty ? 'default' : scope} · server ${serverUrl.isEmpty ? 'default' : 'custom'}' : 'Microsoft Graph (Chat.Read)')}',
       'Tools on server: ${d['toolsTotal'] ?? '-'} (read-only allowed: ${(d['toolsAllowed'] as List?)?.length ?? '-'}, blocked: ${d['toolsBlocked'] ?? '-'})',
       'Allowed tools: ${(d['toolsAllowed'] as List?)?.join(', ') ?? '-'}',
       'Chat tool: ${d['chatTool'] ?? '-'} · Message tool: ${d['messageTool'] ?? '-'}',

@@ -51,6 +51,56 @@ class _SetupViewState extends State<_SetupView> {
   late final scope = TextEditingController(text: t.scope.isEmpty ? TeamState.defaultScope : t.scope);
   late final server = TextEditingController(text: t.serverUrl.isEmpty ? TeamState.defaultServer : t.serverUrl);
   late String mode = t.mode;
+  late final endpoint = TextEditingController(text: t.endpointUrl);
+  late final readKey = TextEditingController(text: t.readKey);
+
+  /// Summaries written by a Claude routine and stored on your own Cloudflare Worker.
+  List<Widget> _endpointSetup(SprintColors c) => [
+    _promise(c, 'Made by your Claude routine.', 'The routine reads Teams with Claude\'s Microsoft 365 connector and writes the summary.'),
+    _promise(c, 'Your own endpoint.', 'Stored on your Cloudflare Worker for 10 days. DayMate only reads it, with the read key.'),
+    _promise(c, 'Note:', 'In this mode chats are processed in the cloud (Claude), not on the phone.'),
+    const SizedBox(height: 10),
+    TextField(
+      controller: endpoint,
+      keyboardType: TextInputType.url,
+      style: const TextStyle(fontSize: 14.5),
+      decoration: const InputDecoration(labelText: 'Endpoint address', hintText: 'https://daymate-summary.you.workers.dev', isDense: true),
+    ),
+    TextField(
+      controller: readKey,
+      obscureText: true,
+      style: const TextStyle(fontSize: 14.5),
+      decoration: const InputDecoration(labelText: 'Read key (READ_KEY)', isDense: true),
+    ),
+    if (error != null)
+      Padding(
+        padding: const EdgeInsets.only(top: 10),
+        child: SelectableText(error!, style: const TextStyle(fontSize: 13, color: AppColors.red)),
+      ),
+    const SizedBox(height: 18),
+    SizedBox(
+      width: double.infinity,
+      child: FilledButton.icon(
+        style: FilledButton.styleFrom(minimumSize: const Size(0, 46)),
+        onPressed: TeamState.instance.busy
+            ? null
+            : () async {
+                final bad = TeamState.checkEndpoint(endpoint.text);
+                if (bad != null || readKey.text.trim().isEmpty) {
+                  setState(() => error = bad ?? 'Paste the read key.');
+                  return;
+                }
+                setState(() => error = null);
+                final e = await TeamState.instance.connectEndpoint(endpoint.text, readKey.text);
+                if (mounted && e != null) setState(() => error = e);
+              },
+        icon: TeamState.instance.busy
+            ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+            : const Icon(Icons.link_rounded),
+        label: const Text('Connect'),
+      ),
+    ),
+  ];
   String? error;
 
   @override
@@ -59,6 +109,8 @@ class _SetupViewState extends State<_SetupView> {
     client.dispose();
     scope.dispose();
     server.dispose();
+    endpoint.dispose();
+    readKey.dispose();
     super.dispose();
   }
 
@@ -126,24 +178,18 @@ class _SetupViewState extends State<_SetupView> {
           style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: c.ink),
         ),
         const SizedBox(height: 4),
-        Text(
-          'DayMate summarises your Teams chats on this phone. Choose how it gets them:',
-          style: TextStyle(fontSize: 13.5, color: c.muted, height: 1.4),
-        ),
+        Text('DayMate summarises your Teams chats on this phone. Choose how it gets them:', style: TextStyle(fontSize: 13.5, color: c.muted, height: 1.4)),
         const SizedBox(height: 4),
         RadioRow(
           label: 'Teams notifications on this phone (no sign-in)',
           selected: mode == 'notifications',
           onTap: () => setState(() => mode = 'notifications'),
         ),
-        RadioRow(
-          label: 'Microsoft Graph · Chat.Read (needs admin approval)',
-          selected: mode == 'graph',
-          onTap: () => setState(() => mode = 'graph'),
-        ),
+        RadioRow(label: 'Microsoft Graph · Chat.Read (needs admin approval)', selected: mode == 'graph', onTap: () => setState(() => mode = 'graph')),
         RadioRow(label: 'Company Teams MCP server', selected: mode == 'mcp', onTap: () => setState(() => mode = 'mcp')),
+        RadioRow(label: 'Summaries from my endpoint (Claude routine)', selected: mode == 'endpoint', onTap: () => setState(() => mode = 'endpoint')),
         const SizedBox(height: 8),
-        if (mode == 'notifications') ..._notificationSetup(c) else ..._signInSetup(c),
+        if (mode == 'notifications') ..._notificationSetup(c) else if (mode == 'endpoint') ..._endpointSetup(c) else ..._signInSetup(c),
       ],
     );
   }
@@ -217,10 +263,7 @@ class _SetupViewState extends State<_SetupView> {
       'Your company\'s IDs',
       style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: c.ink),
     ),
-    Text(
-      'From the DayMate app registration in Microsoft Entra (Overview page). Saved only on this phone.',
-      style: TextStyle(fontSize: 12.5, color: c.muted),
-    ),
+    Text('From the DayMate app registration in Microsoft Entra (Overview page). Saved only on this phone.', style: TextStyle(fontSize: 12.5, color: c.muted)),
     TextField(
       controller: tenant,
       style: const TextStyle(fontSize: 14.5),
@@ -273,9 +316,7 @@ class _SetupViewState extends State<_SetupView> {
       child: OutlinedButton.icon(
         style: OutlinedButton.styleFrom(minimumSize: const Size(0, 46)),
         onPressed: TeamState.instance.busy ? null : _signIn,
-        icon: TeamState.instance.busy
-            ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-            : const _MsLogo(),
+        icon: TeamState.instance.busy ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)) : const _MsLogo(),
         label: const Text('Sign in with work account'),
       ),
     ),
@@ -312,6 +353,12 @@ class _SummaryView extends StatefulWidget {
 }
 
 class _SummaryViewState extends State<_SummaryView> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => TeamState.instance.maybeAutoFetch());
+  }
+
   final t = TeamState.instance;
   int selected = 0;
   final open = <int>{0};
@@ -369,7 +416,54 @@ class _SummaryViewState extends State<_SummaryView> {
       padding: const EdgeInsets.fromLTRB(14, 10, 14, 24),
       children: [
         // ---- notifications mode: collect + summarise locally ----
-        if (t.viaNotifications)
+        if (t.viaEndpoint)
+          Container(
+            padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+            decoration: BoxDecoration(color: c.card, borderRadius: BorderRadius.circular(14)),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.cloud_download_outlined, size: 18, color: c.muted),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Summaries from your endpoint',
+                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: c.ink),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  t.busy
+                      ? 'Checking…'
+                      : t.lastFetched == 0
+                      ? 'Not checked yet.'
+                      : 'Last checked ${DateFormat('d MMM, h:mm a').format(DateTime.fromMillisecondsSinceEpoch(t.lastFetched))} · '
+                            '${Uri.tryParse(t.endpointUrl)?.host ?? ''}',
+                  style: TextStyle(fontSize: 12.5, color: c.muted, height: 1.35),
+                ),
+                const SizedBox(height: 10),
+                if (t.busy)
+                  const LinearProgressIndicator(minHeight: 4)
+                else
+                  FilledButton.icon(
+                    style: FilledButton.styleFrom(minimumSize: const Size(0, 42)),
+                    onPressed: () async {
+                      final e = await t.fetchFromEndpoint();
+                      if (!mounted) return;
+                      setState(() => selected = 0);
+                      ScaffoldMessenger.of(this.context).showSnackBar(SnackBar(content: Text(e == null ? 'Up to date' : 'Did not work – see details below')));
+                    },
+                    icon: const Icon(Icons.refresh_rounded, size: 18),
+                    label: const Text('Check now'),
+                  ),
+              ],
+            ),
+          )
+        else if (t.viaNotifications)
           Container(
             padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
             decoration: BoxDecoration(color: c.card, borderRadius: BorderRadius.circular(14)),
@@ -538,7 +632,7 @@ class _SummaryViewState extends State<_SummaryView> {
                 const SizedBox(width: 6),
                 Expanded(
                   child: Text(
-                    'Summarised ${DateFormat('d MMM, h:mm a').format(DateTime.fromMillisecondsSinceEpoch(s.generatedAt))} on this phone · '
+                    'Summarised ${DateFormat('d MMM, h:mm a').format(DateTime.fromMillisecondsSinceEpoch(s.generatedAt))} ${s.model.contains('Claude') ? 'by your Claude routine' : 'on this phone'} · '
                     '${s.messages} messages · ${s.chats.length} chats · ${s.model}',
                     style: TextStyle(fontSize: 11.5, color: c.muted),
                   ),
@@ -571,7 +665,9 @@ class _SummaryViewState extends State<_SummaryView> {
           Padding(
             padding: const EdgeInsets.fromLTRB(8, 12, 8, 0),
             child: Text(
-              'Written on this phone from that day\'s messages. Check details in Teams before acting.',
+              s.model.contains('Claude')
+                  ? 'Written by your Claude routine from that day\'s messages. Check details in Teams before acting.'
+                  : 'Written on this phone from that day\'s messages. Check details in Teams before acting.',
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 11.5, color: c.muted),
             ),
@@ -789,8 +885,7 @@ class TeamSettingsScreen extends StatelessWidget {
                   ),
                 ),
               const GroupGap(),
-              if (!t.viaNotifications)
-                OptionRow(icon: Icons.account_circle_outlined, title: 'Work account', value: t.account ?? 'Not signed in'),
+              if (!t.viaNotifications) OptionRow(icon: Icons.account_circle_outlined, title: 'Work account', value: t.account ?? 'Not signed in'),
               OptionRow(
                 icon: Icons.badge_outlined,
                 title: 'Company IDs',
@@ -807,6 +902,7 @@ class TeamSettingsScreen extends StatelessWidget {
                       ('notifications', 'Teams notifications on this phone (no sign-in)'),
                       ('graph', 'Microsoft Graph · Chat.Read (needs admin approval)'),
                       ('mcp', 'Company Teams MCP server'),
+                      ('endpoint', 'Summaries from my endpoint (Claude routine)'),
                     ],
                     current: t.mode,
                   );
@@ -817,15 +913,12 @@ class TeamSettingsScreen extends StatelessWidget {
                 },
                 value: switch (t.mode) {
                   'notifications' => 'Teams notifications on this phone · tap to change',
+                  'endpoint' => 'Summaries from my endpoint (Claude routine) · tap to change',
                   'mcp' => 'Company Teams MCP server (read tools only) · tap to change',
                   _ => 'Microsoft Graph · Chat.Read (read-only) · tap to change',
                 },
               ),
-              OptionRow(
-                icon: Icons.memory_rounded,
-                title: 'AI model',
-                value: t.lastDiagnostics['model']?.toString() ?? 'Chosen on first pull',
-              ),
+              OptionRow(icon: Icons.memory_rounded, title: 'AI model', value: t.lastDiagnostics['model']?.toString() ?? 'Chosen on first pull'),
               OptionRow(
                 icon: Icons.copy_rounded,
                 title: 'Copy connection details',
@@ -835,9 +928,15 @@ class TeamSettingsScreen extends StatelessWidget {
               OptionRow(
                 icon: Icons.history_rounded,
                 title: 'Kept on phone',
-                value:
-                    '${t.summaries.length} summar${t.summaries.length == 1 ? 'y' : 'ies'} · older than ${TeamState.keepDays} days delete themselves',
+                value: '${t.summaries.length} summar${t.summaries.length == 1 ? 'y' : 'ies'} · older than ${TeamState.keepDays} days delete themselves',
               ),
+              if (t.viaEndpoint)
+                OptionRow(
+                  icon: Icons.cloud_outlined,
+                  title: 'Endpoint',
+                  value:
+                      '${Uri.tryParse(t.endpointUrl)?.host ?? '-'} · read key ${t.readKey.length > 6 ? '••••${t.readKey.substring(t.readKey.length - 4)}' : 'set'}',
+                ),
               if (t.viaNotifications) ...[
                 OptionRow(
                   icon: Icons.notifications_outlined,
