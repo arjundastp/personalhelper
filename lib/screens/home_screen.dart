@@ -52,9 +52,9 @@ class _HomeScreenState extends State<HomeScreen> {
           Padding(
             padding: const EdgeInsets.fromLTRB(24, 0, 24, 8),
             child: Row(children: [
-              CategoryAvatar(category: r.category, size: 44),
+              CategoryAvatar(category: r.category, size: 38),
               const SizedBox(width: 14),
-              Expanded(child: Text(r.title, style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w600))),
+              Expanded(child: Text(r.title, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600))),
             ]),
           ),
           OptionRow(icon: Icons.edit_rounded, title: 'Change', onTap: () => Navigator.pop(c, 'edit')),
@@ -93,7 +93,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final m = ScaffoldMessenger.of(context);
     m.clearSnackBars();
     m.showSnackBar(SnackBar(
-      content: Text(text, style: const TextStyle(fontSize: 16)),
+      content: Text(text, style: const TextStyle(fontSize: 14.5)),
       action: undo == null ? null : SnackBarAction(label: 'UNDO', onPressed: undo),
     ));
   }
@@ -116,21 +116,21 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: Icon(i, color: AppColors.accent, size: 24),
                 ),
                 const SizedBox(width: 16),
-                Expanded(child: Text(t, style: const TextStyle(fontSize: 16.5))),
+                Expanded(child: Text(t, style: const TextStyle(fontSize: 14.5))),
               ]),
             );
         return SafeArea(
           child: Padding(
             padding: const EdgeInsets.fromLTRB(24, 28, 24, 16),
             child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-              const Text('Welcome to Remindly', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700)),
+              const Text('Welcome to Remindly', style: TextStyle(fontSize: 21, fontWeight: FontWeight.w700)),
               const SizedBox(height: 12),
               point(Icons.fullscreen_rounded, 'When it is time, your phone shows a big alert, even when it is locked.'),
               point(Icons.volume_up_rounded, 'It rings even if your phone is on silent.'),
               point(Icons.lock_outline_rounded, 'Everything stays on your phone. No internet needed.'),
               const SizedBox(height: 12),
               const Text('On the next screen, please tap "Allow".',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                  style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w600)),
               const SizedBox(height: 20),
               SizedBox(
                 width: double.infinity,
@@ -181,15 +181,15 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 onSelected: (v) => _open(v == 'history' ? const HistoryScreen() : const SettingsScreen()),
                 itemBuilder: (_) => const [
-                  PopupMenuItem(value: 'history', child: Text('History', style: TextStyle(fontSize: 16))),
-                  PopupMenuItem(value: 'settings', child: Text('Settings', style: TextStyle(fontSize: 16))),
+                  PopupMenuItem(value: 'history', child: Text('History', style: TextStyle(fontSize: 14.5))),
+                  PopupMenuItem(value: 'settings', child: Text('Settings', style: TextStyle(fontSize: 14.5))),
                 ],
               ),
             ],
           ),
           floatingActionButton: FloatingActionButton.extended(
             onPressed: () => _open(const EditScreen()),
-            icon: const Icon(Icons.add_alarm_rounded, size: 26),
+            icon: const Icon(Icons.add_alarm_rounded, size: 22),
             label: const Text('Add reminder'),
           ),
           body: !state.loaded
@@ -228,7 +228,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         child: Text(
                           'Tap a reminder to change it. Press and hold for more options.',
                           textAlign: TextAlign.center,
-                          style: TextStyle(fontSize: 14, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                          style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurfaceVariant),
                         ),
                       ),
                   ],
@@ -245,7 +245,7 @@ class _HomeScreenState extends State<HomeScreen> {
             onTap: () => _open(EditScreen(reminder: items[i])),
             onLongPress: () => _actions(items[i]),
           ),
-          if (i < items.length - 1) const Divider(indent: 86),
+          if (i < items.length - 1) const Divider(indent: 74),
         ],
       ];
 }
@@ -255,7 +255,7 @@ Future<bool> confirmDelete(BuildContext context, Reminder r) async {
     context: context,
     builder: (c) => AlertDialog(
       title: const Text('Delete this reminder?'),
-      content: Text('"${r.title}" will not ring again.', style: const TextStyle(fontSize: 16)),
+      content: Text('"${r.title}" will not ring again.', style: const TextStyle(fontSize: 14.5)),
       actions: [
         TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
         TextButton(
@@ -281,15 +281,15 @@ class _EmptyState extends StatelessWidget {
       child: Column(
         children: [
           Container(
-            width: 120,
-            height: 120,
+            width: 96,
+            height: 96,
             decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.12), shape: BoxShape.circle),
-            child: const Icon(Icons.alarm_add_rounded, size: 60, color: AppColors.accent),
+            child: const Icon(Icons.alarm_add_rounded, size: 48, color: AppColors.accent),
           ),
           const SizedBox(height: 20),
-          const Text('No reminders yet', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700)),
+          const Text('No reminders yet', style: TextStyle(fontSize: 19, fontWeight: FontWeight.w700)),
           const SizedBox(height: 6),
-          Text('Tap one below to start quickly', textAlign: TextAlign.center, style: TextStyle(fontSize: 16, color: grey)),
+          Text('Tap one below to start quickly', textAlign: TextAlign.center, style: TextStyle(fontSize: 14.5, color: grey)),
           const SizedBox(height: 20),
           for (final t in templates.take(5))
             Padding(

@@ -45,7 +45,7 @@ ThemeData buildTheme(Brightness b, {String? fontFamily}) {
       surfaceTintColor: Colors.transparent,
       elevation: 0,
       scrolledUnderElevation: 0,
-      titleTextStyle: TextStyle(fontFamily: fontFamily, color: Colors.white, fontSize: 21, fontWeight: FontWeight.w600),
+      titleTextStyle: TextStyle(fontFamily: fontFamily, color: Colors.white, fontSize: 19, fontWeight: FontWeight.w600),
       iconTheme: const IconThemeData(color: Colors.white, size: 26),
       actionsIconTheme: const IconThemeData(color: Colors.white, size: 26),
       systemOverlayStyle: SystemUiOverlayStyle.light.copyWith(
@@ -58,7 +58,7 @@ ThemeData buildTheme(Brightness b, {String? fontFamily}) {
       foregroundColor: Colors.white,
       elevation: 3,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(18))),
-      extendedTextStyle: TextStyle(fontFamily: fontFamily, fontSize: 17, fontWeight: FontWeight.w600),
+      extendedTextStyle: TextStyle(fontFamily: fontFamily, fontSize: 15, fontWeight: FontWeight.w600),
     ),
     switchTheme: SwitchThemeData(
       thumbColor: WidgetStateProperty.resolveWith((s) => s.contains(WidgetState.selected) ? Colors.white : null),
@@ -69,11 +69,11 @@ ThemeData buildTheme(Brightness b, {String? fontFamily}) {
       fillColor: WidgetStateProperty.resolveWith((s) => s.contains(WidgetState.selected) ? AppColors.accent : scheme.onSurfaceVariant),
     ),
     listTileTheme: ListTileThemeData(
-      titleTextStyle: TextStyle(fontFamily: fontFamily, fontSize: 17, color: scheme.onSurface),
-      subtitleTextStyle: TextStyle(fontFamily: fontFamily, fontSize: 15, color: scheme.onSurfaceVariant),
+      titleTextStyle: TextStyle(fontFamily: fontFamily, fontSize: 15, color: scheme.onSurface),
+      subtitleTextStyle: TextStyle(fontFamily: fontFamily, fontSize: 13.5, color: scheme.onSurfaceVariant),
       iconColor: scheme.onSurfaceVariant,
       contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-      minVerticalPadding: 12,
+      minVerticalPadding: 8,
     ),
     inputDecorationTheme: InputDecorationTheme(
       border: UnderlineInputBorder(borderSide: BorderSide(color: scheme.outlineVariant, width: 2)),
@@ -87,30 +87,30 @@ ThemeData buildTheme(Brightness b, {String? fontFamily}) {
       style: FilledButton.styleFrom(
         backgroundColor: AppColors.accent,
         foregroundColor: light ? Colors.white : AppColors.darkBg,
-        minimumSize: const Size(64, 52),
-        textStyle: TextStyle(fontFamily: fontFamily, fontSize: 17, fontWeight: FontWeight.w600),
+        minimumSize: const Size(64, 46),
+        textStyle: TextStyle(fontFamily: fontFamily, fontSize: 15, fontWeight: FontWeight.w600),
         shape: const StadiumBorder(),
       ),
     ),
     outlinedButtonTheme: OutlinedButtonThemeData(
       style: OutlinedButton.styleFrom(
         foregroundColor: light ? AppColors.green : AppColors.accent,
-        minimumSize: const Size(64, 52),
+        minimumSize: const Size(64, 46),
         side: BorderSide(color: scheme.outlineVariant, width: 1.5),
-        textStyle: TextStyle(fontFamily: fontFamily, fontSize: 17, fontWeight: FontWeight.w600),
+        textStyle: TextStyle(fontFamily: fontFamily, fontSize: 15, fontWeight: FontWeight.w600),
         shape: const StadiumBorder(),
       ),
     ),
     textButtonTheme: TextButtonThemeData(
       style: TextButton.styleFrom(
         foregroundColor: light ? AppColors.green : AppColors.accent,
-        textStyle: TextStyle(fontFamily: fontFamily, fontSize: 16, fontWeight: FontWeight.w600),
+        textStyle: TextStyle(fontFamily: fontFamily, fontSize: 14.5, fontWeight: FontWeight.w600),
       ),
     ),
     chipTheme: ChipThemeData(
       shape: const StadiumBorder(),
       side: BorderSide(color: scheme.outlineVariant),
-      labelStyle: TextStyle(fontFamily: fontFamily, fontSize: 15, color: scheme.onSurface),
+      labelStyle: TextStyle(fontFamily: fontFamily, fontSize: 13.5, color: scheme.onSurface),
       selectedColor: AppColors.accent.withValues(alpha: light ? 0.15 : 0.3),
       checkmarkColor: light ? AppColors.green : AppColors.accent,
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
@@ -121,7 +121,7 @@ ThemeData buildTheme(Brightness b, {String? fontFamily}) {
       indicatorColor: Colors.white,
       indicatorSize: TabBarIndicatorSize.tab,
       dividerColor: Colors.transparent,
-      labelStyle: TextStyle(fontFamily: fontFamily, fontSize: 15, fontWeight: FontWeight.w600),
+      labelStyle: TextStyle(fontFamily: fontFamily, fontSize: 13.5, fontWeight: FontWeight.w600),
     ),
     bottomSheetTheme: BottomSheetThemeData(
       backgroundColor: light ? Colors.white : AppColors.darkBar,
@@ -132,7 +132,7 @@ ThemeData buildTheme(Brightness b, {String? fontFamily}) {
       backgroundColor: scheme.surface,
       surfaceTintColor: Colors.transparent,
       indicatorColor: light ? const Color(0xFFD9FDD3) : const Color(0xFF103529),
-      height: 76,
+      height: 66,
       labelTextStyle: WidgetStateProperty.resolveWith((s) => TextStyle(
             fontFamily: fontFamily,
             fontSize: 13.5,

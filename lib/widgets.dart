@@ -9,7 +9,7 @@ class CategoryAvatar extends StatelessWidget {
   final String category;
   final double size;
   final bool muted;
-  const CategoryAvatar({super.key, required this.category, this.size = 54, this.muted = false});
+  const CategoryAvatar({super.key, required this.category, this.size = 44, this.muted = false});
 
   @override
   Widget build(BuildContext context) {
@@ -47,11 +47,11 @@ class ReminderRow extends StatelessWidget {
       onTap: onTap,
       onLongPress: onLongPress,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+        padding: const EdgeInsets.fromLTRB(16, 9, 16, 9),
         child: Row(
           children: [
             CategoryAvatar(category: r.category, muted: !on),
-            const SizedBox(width: 16),
+            const SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -65,7 +65,7 @@ class ReminderRow extends StatelessWidget {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            fontSize: 17.5,
+                            fontSize: 15.5,
                             fontWeight: FontWeight.w600,
                             color: on ? theme.colorScheme.onSurface : grey,
                           ),
@@ -79,21 +79,21 @@ class ReminderRow extends StatelessWidget {
                       Text(
                         on ? fmtTime(context, next) : '',
                         style: TextStyle(
-                          fontSize: 14,
+                          fontSize: 13,
                           fontWeight: soon ? FontWeight.w600 : FontWeight.w400,
                           color: snoozed ? const Color(0xFFF76B15) : (soon ? green : grey),
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 2),
                   Row(
                     children: [
                       Icon(
                         snoozed
                             ? Icons.snooze_rounded
                             : (r.repeat.type == 'once' ? Icons.event_outlined : Icons.repeat_rounded),
-                        size: 17,
+                        size: 15,
                         color: snoozed ? const Color(0xFFF76B15) : grey,
                       ),
                       const SizedBox(width: 5),
@@ -102,7 +102,7 @@ class ReminderRow extends StatelessWidget {
                           snoozed ? 'Snoozed' : (on ? repeatSummary(context, r) : _offText(r)),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: TextStyle(fontSize: 15, color: grey),
+                          style: TextStyle(fontSize: 13.5, color: grey),
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -150,11 +150,11 @@ class ListHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, 4),
+      padding: const EdgeInsets.fromLTRB(20, 14, 20, 2),
       child: Text(
         text,
         style: TextStyle(
-          fontSize: 15,
+          fontSize: 13.5,
           fontWeight: FontWeight.w600,
           color: theme.brightness == Brightness.light ? AppColors.green : AppColors.accent,
         ),
@@ -179,22 +179,22 @@ class OptionRow extends StatelessWidget {
     return InkWell(
       onTap: onTap,
       child: ConstrainedBox(
-        constraints: const BoxConstraints(minHeight: 68),
+        constraints: const BoxConstraints(minHeight: 54),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 9),
           child: Row(
             children: [
-              Icon(icon, size: 26, color: color ?? theme.colorScheme.onSurfaceVariant),
-              const SizedBox(width: 24),
+              Icon(icon, size: 22, color: color ?? theme.colorScheme.onSurfaceVariant),
+              const SizedBox(width: 20),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(title, style: TextStyle(fontSize: 17, color: color ?? theme.colorScheme.onSurface)),
+                    Text(title, style: TextStyle(fontSize: 15, color: color ?? theme.colorScheme.onSurface)),
                     if (value != null) ...[
                       const SizedBox(height: 2),
-                      Text(value!, style: TextStyle(fontSize: 15, color: theme.colorScheme.onSurfaceVariant)),
+                      Text(value!, style: TextStyle(fontSize: 13.5, color: theme.colorScheme.onSurfaceVariant)),
                     ],
                   ],
                 ),
@@ -219,7 +219,7 @@ class GroupGap extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Container(height: 8, color: theme.colorScheme.outlineVariant.withValues(alpha: 0.6)),
+        Container(height: 6, color: theme.colorScheme.outlineVariant.withValues(alpha: 0.6)),
         if (title != null) ListHeader(title!),
       ],
     );
@@ -244,7 +244,7 @@ Future<T?> chooseOne<T>(
           children: [
             Padding(
               padding: const EdgeInsets.fromLTRB(24, 0, 24, 8),
-              child: Text(title, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600)),
+              child: Text(title, style: const TextStyle(fontSize: 17.5, fontWeight: FontWeight.w600)),
             ),
             for (final (value, label) in options)
               RadioRow(label: label, selected: value == current, onTap: () => Navigator.pop(c, value)),
@@ -269,12 +269,12 @@ class RadioRow extends StatelessWidget {
     return InkWell(
       onTap: onTap,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 11),
         child: Row(children: [
           Icon(selected ? Icons.radio_button_checked_rounded : Icons.radio_button_off_rounded,
-              color: selected ? AppColors.accent : grey, size: 26),
-          const SizedBox(width: 20),
-          Expanded(child: Text(label, style: const TextStyle(fontSize: 17))),
+              color: selected ? AppColors.accent : grey, size: 22),
+          const SizedBox(width: 16),
+          Expanded(child: Text(label, style: const TextStyle(fontSize: 15))),
         ]),
       ),
     );
@@ -304,8 +304,8 @@ class DayPicker extends StatelessWidget {
               onTap: () => onToggle(d),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 150),
-                width: 42,
-                height: 42,
+                width: 36,
+                height: 36,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
@@ -314,7 +314,7 @@ class DayPicker extends StatelessWidget {
                 child: Text(
                   weekdayLetter[d - 1],
                   style: TextStyle(
-                    fontSize: 17,
+                    fontSize: 15,
                     fontWeight: FontWeight.w700,
                     color: selected.contains(d) ? Colors.white : theme.colorScheme.onSurfaceVariant,
                   ),
@@ -343,20 +343,20 @@ class BannerRow extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 14, 12, 14),
+          padding: const EdgeInsets.fromLTRB(16, 10, 12, 10),
           child: Row(children: [
             Container(
-              width: 54,
-              height: 54,
+              width: 42,
+              height: 42,
               decoration: BoxDecoration(color: color.withValues(alpha: 0.18), shape: BoxShape.circle),
-              child: Icon(icon, color: color, size: 28),
+              child: Icon(icon, color: color, size: 22),
             ),
-            const SizedBox(width: 16),
+            const SizedBox(width: 14),
             Expanded(
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(title, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600)),
+                Text(title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
                 const SizedBox(height: 2),
-                Text(subtitle, style: TextStyle(fontSize: 15, color: Theme.of(context).colorScheme.onSurfaceVariant)),
+                Text(subtitle, style: TextStyle(fontSize: 13.5, color: Theme.of(context).colorScheme.onSurfaceVariant)),
               ]),
             ),
             Icon(Icons.chevron_right_rounded, color: color),

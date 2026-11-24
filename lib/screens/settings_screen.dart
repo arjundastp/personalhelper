@@ -62,7 +62,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (on && !await confirmDeviceAuth()) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('First set a fingerprint, PIN or pattern in your phone settings.', style: TextStyle(fontSize: 16)),
+          content: Text('First set a fingerprint, PIN or pattern in your phone settings.', style: TextStyle(fontSize: 14.5)),
         ));
       }
       return;
@@ -80,7 +80,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
       duration: Duration(seconds: 5),
-      content: Text('A test alert will ring in 5 seconds. You can lock your phone now.', style: TextStyle(fontSize: 16)),
+      content: Text('A test alert will ring in 5 seconds. You can lock your phone now.', style: TextStyle(fontSize: 14.5)),
     ));
   }
 
@@ -105,31 +105,31 @@ class _SettingsScreenState extends State<SettingsScreen> {
             children: [
               // ---- status ----
               Padding(
-                padding: const EdgeInsets.fromLTRB(20, 24, 20, 16),
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 10),
                 child: Row(children: [
                   Container(
-                    width: 64,
-                    height: 64,
+                    width: 52,
+                    height: 52,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       color: (criticalMissing ? AppColors.red : AppColors.accent).withValues(alpha: 0.15),
                     ),
                     child: Icon(criticalMissing ? Icons.priority_high_rounded : Icons.check_rounded,
-                        size: 36, color: criticalMissing ? AppColors.red : AppColors.accent),
+                        size: 28, color: criticalMissing ? AppColors.red : AppColors.accent),
                   ),
                   const SizedBox(width: 18),
                   Expanded(
                     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                       Text(
                         criticalMissing ? 'Reminders may not ring' : 'Reminders will ring',
-                        style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
+                        style: const TextStyle(fontSize: 17.5, fontWeight: FontWeight.w600),
                       ),
                       const SizedBox(height: 2),
                       Text(
                         missing.isEmpty
                             ? 'Everything is set up.'
                             : 'Tap "Allow" below. ${missing.length} item${missing.length == 1 ? '' : 's'} left.',
-                        style: TextStyle(fontSize: 15, color: grey),
+                        style: TextStyle(fontSize: 13.5, color: grey),
                       ),
                     ]),
                   ),
@@ -142,7 +142,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   title: x.title,
                   value: x.why,
                   trailing: FilledButton(
-                    style: FilledButton.styleFrom(minimumSize: const Size(80, 42)),
+                    style: FilledButton.styleFrom(minimumSize: const Size(72, 36), padding: const EdgeInsets.symmetric(horizontal: 14)),
                     onPressed: () async {
                       await Native.requestPermission(x.key);
                       await state.refreshPermissions();
@@ -160,7 +160,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
                     Icon(Icons.lightbulb_outline_rounded, size: 22, color: grey),
                     const SizedBox(width: 12),
-                    Expanded(child: Text(_phoneTip!, style: TextStyle(fontSize: 14.5, color: grey))),
+                    Expanded(child: Text(_phoneTip!, style: TextStyle(fontSize: 13, color: grey))),
                   ]),
                 ),
               OptionRow(
@@ -245,7 +245,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
               _switch(Icons.format_size_rounded, 'Bigger text', 'Easier to read', 'largeText', false),
               const SizedBox(height: 24),
-              Center(child: Text('Remindly 1.4', style: TextStyle(fontSize: 13, color: grey))),
+              Center(child: Text('Remindly 1.5', style: TextStyle(fontSize: 13, color: grey))),
             ],
           ),
         );
@@ -301,7 +301,7 @@ class _SprintCard extends StatelessWidget {
                   const Text('Daily Sprint', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
                   const SizedBox(height: 3),
                   Text('Plan your small work tasks each morning. Every evening it asks you which ones got done.',
-                      style: TextStyle(fontSize: 14.5, color: grey, height: 1.35)),
+                      style: TextStyle(fontSize: 13, color: grey, height: 1.35)),
                 ]),
               ),
             ]),
@@ -326,7 +326,7 @@ class _SprintCard extends StatelessWidget {
                   await sprint.setEnabled(true);
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                      content: Text('Daily Sprint added. Find it in the bottom menu.', style: TextStyle(fontSize: 16)),
+                      content: Text('Daily Sprint added. Find it in the bottom menu.', style: TextStyle(fontSize: 14.5)),
                     ));
                   }
                 },

@@ -4,7 +4,7 @@ An offline Android reminder app (Flutter UI with a native Android alarm engine).
 
 ## Download
 
-**[⬇ Download Remindly for Android](https://github.com/arjundastp/personalhelper/raw/main/downloads/Remindly.apk)** (version 1.4, about 18 MB, Android 8.0 or newer)
+**[⬇ Download Remindly for Android](https://github.com/arjundastp/personalhelper/raw/main/downloads/Remindly.apk)** (version 1.5, about 18 MB, Android 8.0 or newer)
 
 - Most phones: [`Remindly.apk`](https://github.com/arjundastp/personalhelper/raw/main/downloads/Remindly.apk)
 - Older or very low-cost phones (32-bit): [`Remindly-older-phones.apk`](https://github.com/arjundastp/personalhelper/raw/main/downloads/Remindly-older-phones.apk)

@@ -182,7 +182,7 @@ class _EditScreenState extends State<EditScreen> {
           child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
             const Padding(
               padding: EdgeInsets.fromLTRB(8, 0, 8, 16),
-              child: Text('Choose a picture', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600)),
+              child: Text('Choose a picture', style: TextStyle(fontSize: 17.5, fontWeight: FontWeight.w600)),
             ),
             GridView.count(
               crossAxisCount: 4,
@@ -205,7 +205,7 @@ class _EditScreenState extends State<EditScreen> {
                         child: Icon(cat.icon, size: 30, color: cat.key == draft.category ? Colors.white : cat.color),
                       ),
                       const SizedBox(height: 6),
-                      Text(cat.label, style: const TextStyle(fontSize: 14)),
+                      Text(cat.label, style: const TextStyle(fontSize: 13)),
                     ]),
                   ),
               ],
@@ -245,7 +245,7 @@ class _EditScreenState extends State<EditScreen> {
                 padding: EdgeInsets.fromLTRB(24, 0, 24, 8),
                 child: Align(
                   alignment: Alignment.centerLeft,
-                  child: Text('Repeat', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600)),
+                  child: Text('Repeat', style: TextStyle(fontSize: 17.5, fontWeight: FontWeight.w600)),
                 ),
               ),
               Flexible(
@@ -281,14 +281,14 @@ class _EditScreenState extends State<EditScreen> {
                             Padding(
                               padding: const EdgeInsets.fromLTRB(70, 0, 20, 8),
                               child: Text('On the ${ordinal(draft.startDate.day)} of the month',
-                                  style: TextStyle(fontSize: 15, color: Theme.of(c).colorScheme.onSurfaceVariant)),
+                                  style: TextStyle(fontSize: 13.5, color: Theme.of(c).colorScheme.onSurfaceVariant)),
                             ),
                           ],
                         'hourly' => [
                             Padding(
                               padding: const EdgeInsets.fromLTRB(70, 0, 20, 6),
                               child: Text('Remind me every',
-                                  style: TextStyle(fontSize: 15, color: Theme.of(c).colorScheme.onSurfaceVariant)),
+                                  style: TextStyle(fontSize: 13.5, color: Theme.of(c).colorScheme.onSurfaceVariant)),
                             ),
                             chips(const [(30, '30 min'), (60, '1 hour'), (120, '2 hours'), (180, '3 hours'), (240, '4 hours')]),
                           ],
@@ -380,7 +380,7 @@ class _EditScreenState extends State<EditScreen> {
       messenger.clearSnackBars();
       messenger.showSnackBar(SnackBar(
         content: Text(next != null ? 'Saved ✓  It will ring ${fmtRelative(next)}.' : 'Saved ✓',
-            style: const TextStyle(fontSize: 16)),
+            style: const TextStyle(fontSize: 14.5)),
       ));
     } catch (e) {
       setState(() => saving = false);
@@ -391,7 +391,7 @@ class _EditScreenState extends State<EditScreen> {
   void _problem(String text) => showDialog<void>(
         context: context,
         builder: (c) => AlertDialog(
-          content: Text(text, style: const TextStyle(fontSize: 17)),
+          content: Text(text, style: const TextStyle(fontSize: 15)),
           actions: [TextButton(onPressed: () => Navigator.pop(c), child: const Text('OK'))],
         ),
       );
@@ -435,7 +435,7 @@ class _EditScreenState extends State<EditScreen> {
         children: [
           // Picture + name
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 24, 20, 8),
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 4),
             child: Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
               Semantics(
                 button: true,
@@ -444,23 +444,23 @@ class _EditScreenState extends State<EditScreen> {
                   onTap: _pickIcon,
                   child: Stack(clipBehavior: Clip.none, children: [
                     Container(
-                      width: 68,
-                      height: 68,
+                      width: 56,
+                      height: 56,
                       decoration: BoxDecoration(color: cat.color.withValues(alpha: 0.15), shape: BoxShape.circle),
-                      child: Icon(cat.icon, color: cat.color, size: 36),
+                      child: Icon(cat.icon, color: cat.color, size: 28),
                     ),
                     Positioned(
                       right: -2,
                       bottom: -2,
                       child: Container(
-                        width: 26,
-                        height: 26,
+                        width: 22,
+                        height: 22,
                         decoration: BoxDecoration(
                           color: AppColors.accent,
                           shape: BoxShape.circle,
                           border: Border.all(color: theme.colorScheme.surface, width: 2),
                         ),
-                        child: const Icon(Icons.edit_rounded, color: Colors.white, size: 14),
+                        child: const Icon(Icons.edit_rounded, color: Colors.white, size: 12),
                       ),
                     ),
                   ]),
@@ -471,7 +471,7 @@ class _EditScreenState extends State<EditScreen> {
                 child: TextField(
                   controller: titleCtrl,
                   textCapitalization: TextCapitalization.sentences,
-                  style: const TextStyle(fontSize: 20),
+                  style: const TextStyle(fontSize: 17.5),
                   decoration: const InputDecoration(labelText: 'What should I remind you?', hintText: 'e.g. Take BP tablet'),
                   onChanged: (v) => draft = draft.copyWith(title: v),
                 ),
@@ -531,7 +531,7 @@ class _EditScreenState extends State<EditScreen> {
                 rule.type == 'once'
                     ? 'Will ring ${fmtRelative(preview.first)}'
                     : 'Next: ${preview.map((d) => fmtWhen(context, d)).join(',  ')}',
-                style: TextStyle(fontSize: 14, color: grey),
+                style: TextStyle(fontSize: 13, color: grey),
               ),
             ),
 
@@ -565,7 +565,7 @@ class _EditScreenState extends State<EditScreen> {
               controller: notesCtrl,
               minLines: 1,
               maxLines: 4,
-              style: const TextStyle(fontSize: 17),
+              style: const TextStyle(fontSize: 15),
               textCapitalization: TextCapitalization.sentences,
               decoration: const InputDecoration(hintText: 'e.g. 1 tablet after food'),
             ),

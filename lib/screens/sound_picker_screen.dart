@@ -112,7 +112,7 @@ class _SoundPickerScreenState extends State<SoundPickerScreen> {
                   Padding(
                     padding: const EdgeInsets.only(bottom: 8),
                     child: Text('Chosen: ${selected!.title}',
-                        maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 16)),
+                        maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 14.5)),
                   ),
                 Row(children: [
                   Expanded(
@@ -156,15 +156,16 @@ class _SoundPickerScreenState extends State<SoundPickerScreen> {
         final isSel = selected?.uri == o.uri;
         final isPlaying = playing == o.uri;
         return ListTile(
-          minVerticalPadding: 14,
+          minVerticalPadding: 8,
+          dense: true,
           contentPadding: const EdgeInsets.symmetric(horizontal: 20),
           leading: Icon(isSel ? Icons.radio_button_checked_rounded : Icons.radio_button_off_rounded,
-              color: isSel ? const Color(0xFF00A884) : theme.colorScheme.onSurfaceVariant, size: 28),
-          title: Text(o.title, style: TextStyle(fontSize: 17, fontWeight: isSel ? FontWeight.w700 : FontWeight.w400)),
+              color: isSel ? const Color(0xFF00A884) : theme.colorScheme.onSurfaceVariant, size: 22),
+          title: Text(o.title, style: TextStyle(fontSize: 15, fontWeight: isSel ? FontWeight.w700 : FontWeight.w400)),
           subtitle: o.group == 'file' ? const Text('From your files') : null,
           trailing: IconButton(
             tooltip: isPlaying ? 'Stop' : 'Play',
-            iconSize: 30,
+            iconSize: 26,
             onPressed: () => _tap(o),
             icon: Icon(isPlaying ? Icons.stop_circle_rounded : Icons.play_circle_outline_rounded,
                 color: const Color(0xFF00A884)),
