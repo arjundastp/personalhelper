@@ -19,7 +19,7 @@ class AppColors {
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await AppState.instance.init();
-  runApp(const RemindlyApp());
+  runApp(const DayMateApp());
 }
 
 ThemeData buildTheme(Brightness b, {String? fontFamily}) {
@@ -150,8 +150,8 @@ ThemeData buildTheme(Brightness b, {String? fontFamily}) {
   );
 }
 
-class RemindlyApp extends StatelessWidget {
-  const RemindlyApp({super.key});
+class DayMateApp extends StatelessWidget {
+  const DayMateApp({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -159,7 +159,7 @@ class RemindlyApp extends StatelessWidget {
     return ListenableBuilder(
       listenable: state,
       builder: (context, _) => MaterialApp(
-        title: 'Remindly',
+        title: 'DayMate',
         debugShowCheckedModeBanner: false,
         theme: buildTheme(Brightness.light),
         darkTheme: buildTheme(Brightness.dark),
@@ -232,7 +232,7 @@ class _AppLockGateState extends State<AppLockGate> with WidgetsBindingObserver {
     try {
       final supported = await _auth.isDeviceSupported();
       ok = !supported || // no lock configured on the phone: nothing to check against
-          await _auth.authenticate(localizedReason: 'Unlock Remindly', persistAcrossBackgrounding: true);
+          await _auth.authenticate(localizedReason: 'Unlock DayMate', persistAcrossBackgrounding: true);
     } catch (_) {
       ok = false;
     }
@@ -261,7 +261,7 @@ class _AppLockGateState extends State<AppLockGate> with WidgetsBindingObserver {
                 child: Icon(Icons.lock_rounded, size: 56, color: cs.onPrimaryContainer),
               ),
               const SizedBox(height: 28),
-              Text('Remindly is locked', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700)),
+              Text('DayMate is locked', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700)),
               const SizedBox(height: 8),
               Text('Use your fingerprint, face or phone screen lock to open.',
                   textAlign: TextAlign.center, style: Theme.of(context).textTheme.bodyLarge),

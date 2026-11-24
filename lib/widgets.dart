@@ -144,13 +144,14 @@ class _Pill extends StatelessWidget {
 /// Small green section title ("Today", "Later" …).
 class ListHeader extends StatelessWidget {
   final String text;
-  const ListHeader(this.text, {super.key});
+  final double left;
+  const ListHeader(this.text, {super.key, this.left = 20});
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 14, 20, 2),
+      padding: EdgeInsets.fromLTRB(left, 14, 20, 2),
       child: Text(
         text,
         style: TextStyle(

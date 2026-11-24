@@ -91,6 +91,29 @@ Map<String, dynamic> sprintJson({bool enabled = true}) {
       {'id': 52, 'text': 'Ask IT about new laptop', 'pausedOn': iso(ago(6))},
     ],
     'reviewed': [iso(ago(1)), iso(ago(2))],
+    'leaves': {
+      iso(ago(3)): {'type': 'leave', 'note': 'Sick'},
+      iso(ago(10)): {'type': 'holiday', 'note': 'Diwali'},
+      iso(ago(15)): {'type': 'half', 'note': null},
+    },
+    'goals': [
+      {'id': 70, 'title': 'Get AWS Solutions Architect certified', 'why': 'Needed for the cloud migration project lead role',
+       'targetDate': '2027-03-31', 'progress': 60, 'status': 'active', 'createdOn': iso(ago(60)), 'notes': [
+         {'date': iso(ago(2)), 'text': 'Finished practice exam 2 – scored 74%', 'progress': 60},
+         {'date': iso(ago(20)), 'text': 'Completed networking and storage modules', 'progress': 45},
+         {'date': iso(ago(45)), 'text': 'Booked the course and set a study plan', 'progress': 10},
+       ]},
+      {'id': 71, 'title': 'Reduce API p95 latency below 300 ms', 'why': '', 'targetDate': '2026-12-31', 'progress': 35,
+       'status': 'active', 'createdOn': iso(ago(40)), 'notes': [{'date': iso(ago(9)), 'text': 'Added caching to search', 'progress': 35}]},
+      {'id': 72, 'title': 'Onboard two new team members', 'why': '', 'targetDate': null, 'progress': 100, 'status': 'done',
+       'createdOn': iso(ago(90)), 'notes': [{'date': iso(ago(30)), 'text': 'Both shipped their first feature', 'progress': 100}]},
+    ],
+    'achievements': [
+      {'id': 80, 'title': 'Shipped the new login flow', 'details': 'Sign-in errors down 40%; zero downtime release', 'date': iso(ago(4)), 'category': 'delivery', 'goalId': null},
+      {'id': 81, 'title': 'Cut search latency by 35%', 'details': 'Redis cache + query tuning', 'date': iso(ago(9)), 'category': 'quality', 'goalId': 71},
+      {'id': 82, 'title': 'Mentored two new joiners', 'details': '', 'date': iso(ago(30)), 'category': 'teamwork', 'goalId': 72},
+      {'id': 83, 'title': 'Spot award for incident handling', 'details': 'Led the Sev-1 bridge on a weekend', 'date': iso(ago(41)), 'category': 'recognition', 'goalId': null},
+    ],
   };
 }
 
@@ -172,6 +195,8 @@ void main() {
       await shot(t, name, const Shell(), mode: mode);
       await t.tap(find.text('Daily Sprint').last);
       await t.pumpAndSettle();
+      await t.ensureVisible(find.text(tab));
+      await t.pumpAndSettle();
       await t.tap(find.text(tab));
       await t.pumpAndSettle();
       if (thirty) {
@@ -183,6 +208,32 @@ void main() {
     testWidgets('parked', (t) => sprintTab(t, 's4_parked', 'PARKED'));
     testWidgets('history', (t) => sprintTab(t, 's5_history', 'HISTORY'));
     testWidgets('insights', (t) => sprintTab(t, 's7_insights', 'INSIGHTS'));
+    testWidgets('goals', (t) => sprintTab(t, 'g1_goals', 'GOALS'));
+    testWidgets('achievements', (t) => sprintTab(t, 'g3_achievements', 'ACHIEVEMENTS'));
+    testWidgets('goal detail', (t) async {
+      await sprintTab(t, 'g2_goal_detail', 'GOALS');
+      await t.tap(find.text('Get AWS Solutions Architect certified'));
+      await t.pumpAndSettle();
+      await expectLater(find.byType(MaterialApp), matchesGoldenFile('goldens/g2_goal_detail.png'));
+    });
+    testWidgets('review summary', (t) async {
+      await sprintTab(t, 'g4_review_summary', 'ACHIEVEMENTS');
+      await t.tap(find.byTooltip('Share for review'));
+      await t.pumpAndSettle();
+      await expectLater(find.byType(MaterialApp), matchesGoldenFile('goldens/g4_review_summary.png'));
+    });
+    testWidgets('attendance', (t) async {
+      await sprintTab(t, 'g5_attendance', 'INSIGHTS');
+      await t.drag(find.text('Daily progress'), const Offset(0, -1250));
+      await t.pumpAndSettle();
+      await expectLater(find.byType(MaterialApp), matchesGoldenFile('goldens/g5_attendance.png'));
+    });
+    testWidgets('leave sheet', (t) async {
+      await sprintTab(t, 'g6_leave_sheet', 'TODAY');
+      await t.tap(find.text('Mark today as leave'));
+      await t.pumpAndSettle();
+      await expectLater(find.byType(MaterialApp), matchesGoldenFile('goldens/g6_leave_sheet.png'));
+    });
     testWidgets('insights 30 dark', (t) => sprintTab(t, 's8_insights_30_dark', 'INSIGHTS', mode: ThemeMode.dark, thirty: true));
     testWidgets('insights scrolled', (t) async {
       await sprintTab(t, 's9_insights_lower', 'INSIGHTS');

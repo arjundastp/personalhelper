@@ -1,13 +1,13 @@
-# Remindly
+# DayMate
 
-An offline Android reminder app (Flutter UI with a native Android alarm engine). Use it for medicines, drinking water, vehicle pollution and insurance renewals, bills, birthdays and anything else.
+**DayMate** (formerly Remindly) is an offline Android app for reminders and your work day (Flutter UI with a native Android alarm engine). Use it for medicines, drinking water, vehicle pollution and insurance renewals, bills, birthdays and anything else.
 
 ## Download
 
-**[⬇ Download Remindly for Android](https://github.com/arjundastp/personalhelper/raw/main/downloads/Remindly.apk)** (version 1.5, about 18 MB, Android 8.0 or newer)
+**[⬇ Download DayMate for Android](https://github.com/arjundastp/personalhelper/raw/main/downloads/DayMate.apk)** (version 1.6, about 18 MB, Android 8.0 or newer)
 
-- Most phones: [`Remindly.apk`](https://github.com/arjundastp/personalhelper/raw/main/downloads/Remindly.apk)
-- Older or very low-cost phones (32-bit): [`Remindly-older-phones.apk`](https://github.com/arjundastp/personalhelper/raw/main/downloads/Remindly-older-phones.apk)
+- Most phones: [`DayMate.apk`](https://github.com/arjundastp/personalhelper/raw/main/downloads/DayMate.apk)
+- Older or very low-cost phones (32-bit): [`DayMate-older-phones.apk`](https://github.com/arjundastp/personalhelper/raw/main/downloads/DayMate-older-phones.apk)
 
 To install: open the downloaded file on your phone. If Android asks, allow your browser or Files app to install apps.
 On first start, tap **Allow** so reminders can ring and show full screen.
@@ -20,8 +20,13 @@ On first start, tap **Allow** so reminders can ring and show full screen.
   Add small tasks for the day in a message-style box. A morning nudge comes at 10:30 AM and a full-screen
   "How did today go?" alert at 6:30 PM (both editable, work days only). Mark each task Done, Not done
   (optionally moved to the next work day, labelled "Moved from …") or Paused (goes to the Parked tasks list).
-  Tabs across the top (Today · Insights · Parked · History); Insights shows completion %, a daily progress chart,
+  Mark days as leave, half-day leave or public holiday (also in advance); reports show working days,
+  leave taken, holidays and days reported for the period, the month and the year.
+  **Goals:** long-term goals with a progress bar, target date and dated progress notes.
+  **Achievements:** log wins by category and link them to goals; "Share for review" builds a ready-to-paste summary.
+  Tabs across the top (Today · Goals · Achievements · Insights · Parked · History); Insights shows completion %, a daily progress chart,
   how tasks ended, an activity calendar, best weekdays and tasks that keep slipping. Code: `lib/sprint/`, `android/.../Sprint.kt`.
+- **Start screen:** choose whether the app opens on Reminders, Daily Sprint or the last one used.
 - **Full-screen alert:** turns the screen on and shows over the lock screen, with large **Done** and **Snooze** buttons.
 - **Rings in silent mode:** sound plays on the *alarm* stream, so silent or vibrate mode does not mute it, and Android's Do Not Disturb lets alarms through by default. If you grant DND access, Remindly also gets through "Total silence" and then restores your setting. It can raise the alarm volume to a minimum level while ringing.
 - **No reminder is lost:**

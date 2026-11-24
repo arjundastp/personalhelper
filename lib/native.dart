@@ -58,6 +58,8 @@ class Native {
     return s == null ? null : SoundOption.fromJson(jsonDecode(s) as Map<String, dynamic>);
   }
 
+  static Future<void> shareText(String text) => _ch.invokeMethod('shareText', text);
+
   static Future<String?> takeLaunchAction() => _ch.invokeMethod<String>('takeLaunchAction');
 
   static Future<void> testAlarm({int seconds = 5}) => _ch.invokeMethod('testAlarm', seconds);

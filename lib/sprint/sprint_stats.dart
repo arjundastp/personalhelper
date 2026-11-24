@@ -13,6 +13,24 @@ class DayCounts {
   double? get rate => total == 0 ? null : done / total;
 }
 
+/// Working days and time off in a date range (only days up to today count).
+class Attendance {
+  final double workingDays; // work days actually worked (half-day leave counts 0.5)
+  final double leaveDays; // full leave = 1, half day = 0.5
+  final int fullLeaves, halfDays, holidays;
+  final int reportedDays; // worked days with a plan where every task got an answer
+  final int plannedDays; // worked days that had a plan
+  const Attendance({
+    this.workingDays = 0,
+    this.leaveDays = 0,
+    this.fullLeaves = 0,
+    this.halfDays = 0,
+    this.holidays = 0,
+    this.reportedDays = 0,
+    this.plannedDays = 0,
+  });
+}
+
 class SlippingTask {
   final String text;
   final int timesNotDone;
@@ -109,6 +127,53 @@ class SprintStats {
         ],
     ];
   }
+
+  /// Attendance between [from] and [to] (inclusive), capped at today.
+  Attendance attendance(DateTime from, DateTime to) {
+    final end = to.isAfter(today) ? today : dateOnly(to);
+    final first = DateTime.parse(s.firstDay);
+    if (from.isBefore(first)) from = first;
+    var working = 0.0, leave = 0.0;
+    var full = 0, half = 0, holidays = 0, reported = 0, planned = 0;
+    for (var d = dateOnly(from); !d.isAfter(end); d = d.add(const Duration(days: 1))) {
+      final key = isoDate(d);
+      final off = s.leaveOn(key);
+      final workday = s.workdays.contains(d.weekday);
+      if (off != null) {
+        switch (off.type) {
+          case LeaveType.holiday:
+            holidays++;
+          case LeaveType.half:
+            half++;
+            leave += 0.5;
+            if (workday) working += 0.5;
+          default:
+            full++;
+            leave += 1;
+        }
+      } else if (workday) {
+        working += 1;
+      }
+      final list = s.tasksFor(key);
+      if (list.isNotEmpty && (off == null || !off.fullDayOff)) {
+        planned++;
+        if (list.every((t) => t.status != TaskStatus.open)) reported++;
+      }
+    }
+    return Attendance(
+      workingDays: working,
+      leaveDays: leave,
+      fullLeaves: full,
+      halfDays: half,
+      holidays: holidays,
+      reportedDays: reported,
+      plannedDays: planned,
+    );
+  }
+
+  Attendance get windowAttendance => attendance(today.subtract(Duration(days: days - 1)), today);
+  Attendance get monthAttendance => attendance(DateTime(today.year, today.month), today);
+  Attendance get yearAttendance => attendance(DateTime(today.year), today);
 
   /// Tasks marked "Not done" on two or more days in the last 30 days: candidates to split or park.
   List<SlippingTask> get slipping {

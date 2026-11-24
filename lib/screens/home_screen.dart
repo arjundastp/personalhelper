@@ -5,6 +5,7 @@ import 'package:material_ui/material_ui.dart';
 import '../main.dart' show AppColors;
 import '../models.dart';
 import '../native.dart';
+import '../sprint/sprint_state.dart';
 import '../state.dart';
 import '../widgets.dart';
 import 'edit_screen.dart';
@@ -123,7 +124,7 @@ class _HomeScreenState extends State<HomeScreen> {
           child: Padding(
             padding: const EdgeInsets.fromLTRB(24, 28, 24, 16),
             child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-              const Text('Welcome to Remindly', style: TextStyle(fontSize: 21, fontWeight: FontWeight.w700)),
+              const Text('Welcome to DayMate', style: TextStyle(fontSize: 21, fontWeight: FontWeight.w700)),
               const SizedBox(height: 12),
               point(Icons.fullscreen_rounded, 'When it is time, your phone shows a big alert, even when it is locked.'),
               point(Icons.volume_up_rounded, 'It rings even if your phone is on silent.'),
@@ -170,7 +171,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
         return Scaffold(
           appBar: AppBar(
-            title: const Text('Remindly'),
+            // With the bottom menu each tab names itself; alone, the app name shows.
+            title: Text(SprintState.instance.enabled ? 'Reminders' : 'DayMate'),
             actions: [
               PopupMenuButton<String>(
                 tooltip: 'More',

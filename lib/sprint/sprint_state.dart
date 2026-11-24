@@ -55,6 +55,118 @@ class ParkedTask {
       );
 }
 
+/// A day off. type: `leave` (full day), `half` (half-day leave) or `holiday` (public holiday).
+class LeaveDay {
+  final String type;
+  final String? note;
+  const LeaveDay(this.type, {this.note});
+
+  bool get fullDayOff => type != LeaveType.half;
+
+  String get label => switch (type) {
+        LeaveType.half => 'Half-day leave',
+        LeaveType.holiday => 'Holiday',
+        _ => 'On leave',
+      };
+
+  Map<String, dynamic> toJson() => {'type': type, 'note': note};
+  factory LeaveDay.fromJson(Map<String, dynamic> j) => LeaveDay(j['type'] as String? ?? LeaveType.leave, note: j['note'] as String?);
+}
+
+/// A dated progress update on a goal.
+class GoalNote {
+  final String date; // yyyy-MM-dd
+  final String text;
+  final int? progress; // progress (0-100) recorded with this note, if changed
+  const GoalNote(this.date, this.text, {this.progress});
+
+  Map<String, dynamic> toJson() => {'date': date, 'text': text, 'progress': progress};
+  factory GoalNote.fromJson(Map<String, dynamic> j) =>
+      GoalNote(j['date'] as String, j['text'] as String? ?? '', progress: (j['progress'] as num?)?.toInt());
+}
+
+abstract class GoalStatus {
+  static const active = 'active';
+  static const done = 'done';
+  static const dropped = 'dropped';
+}
+
+/// A long-term goal (weeks or months), tracked with a 0-100 progress and progress notes.
+class Goal {
+  final int id;
+  String title;
+  String why;
+  String? targetDate; // yyyy-MM-dd
+  int progress;
+  String status;
+  final String createdOn;
+  List<GoalNote> notes; // newest first
+
+  Goal({
+    required this.id,
+    required this.title,
+    this.why = '',
+    this.targetDate,
+    this.progress = 0,
+    this.status = GoalStatus.active,
+    required this.createdOn,
+    List<GoalNote>? notes,
+  }) : notes = notes ?? [];
+
+  String? get lastUpdate => notes.isEmpty ? null : notes.first.date;
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'title': title,
+        'why': why,
+        'targetDate': targetDate,
+        'progress': progress,
+        'status': status,
+        'createdOn': createdOn,
+        'notes': notes.map((n) => n.toJson()).toList(),
+      };
+
+  factory Goal.fromJson(Map<String, dynamic> j) => Goal(
+        id: (j['id'] as num).toInt(),
+        title: j['title'] as String? ?? '',
+        why: j['why'] as String? ?? '',
+        targetDate: j['targetDate'] as String?,
+        progress: (j['progress'] as num?)?.toInt() ?? 0,
+        status: j['status'] as String? ?? GoalStatus.active,
+        createdOn: j['createdOn'] as String? ?? isoDate(DateTime.now()),
+        notes: ((j['notes'] as List?) ?? const []).map((e) => GoalNote.fromJson(Map<String, dynamic>.from(e as Map))).toList(),
+      );
+}
+
+/// Something worth showing in a review meeting.
+class Achievement {
+  final int id;
+  String title;
+  String details;
+  String date; // yyyy-MM-dd
+  String category;
+  int? goalId;
+
+  Achievement({required this.id, required this.title, this.details = '', required this.date, this.category = 'delivery', this.goalId});
+
+  Map<String, dynamic> toJson() => {'id': id, 'title': title, 'details': details, 'date': date, 'category': category, 'goalId': goalId};
+
+  factory Achievement.fromJson(Map<String, dynamic> j) => Achievement(
+        id: (j['id'] as num).toInt(),
+        title: j['title'] as String? ?? '',
+        details: j['details'] as String? ?? '',
+        date: j['date'] as String? ?? isoDate(DateTime.now()),
+        category: j['category'] as String? ?? 'delivery',
+        goalId: (j['goalId'] as num?)?.toInt(),
+      );
+}
+
+abstract class LeaveType {
+  static const leave = 'leave';
+  static const half = 'half';
+  static const holiday = 'holiday';
+}
+
 /// Answer given on the review screen for one task.
 class ReviewAnswer {
   final String status;
@@ -84,6 +196,10 @@ class SprintState extends ChangeNotifier {
   List<SprintTask> tasks = [];
   List<ParkedTask> parked = [];
   Set<String> reviewed = {};
+  Map<String, LeaveDay> leaves = {};
+  String? startedOn; // first day Daily Sprint was used; reports count from here
+  List<Goal> goals = [];
+  List<Achievement> achievements = [];
 
   /// Clock used for "today"; replaceable in tests.
   DateTime Function() now = DateTime.now;
@@ -106,6 +222,10 @@ class SprintState extends ChangeNotifier {
         'tasks': tasks.map((t) => t.toJson()).toList(),
         'parked': parked.map((p) => p.toJson()).toList(),
         'reviewed': reviewed.toList()..sort(),
+        'leaves': {for (final e in leaves.entries) e.key: e.value.toJson()},
+        'startedOn': startedOn,
+        'goals': goals.map((g) => g.toJson()).toList(),
+        'achievements': achievements.map((a) => a.toJson()).toList(),
       };
 
   void fromJson(Map<String, dynamic> j) {
@@ -122,6 +242,121 @@ class SprintState extends ChangeNotifier {
     tasks = ((j['tasks'] as List?) ?? const []).map((e) => SprintTask.fromJson(e as Map<String, dynamic>)).toList();
     parked = ((j['parked'] as List?) ?? const []).map((e) => ParkedTask.fromJson(e as Map<String, dynamic>)).toList();
     reviewed = ((j['reviewed'] as List?) ?? const []).map((e) => e as String).toSet();
+    leaves = ((j['leaves'] as Map?) ?? const {})
+        .map((k, v) => MapEntry(k as String, LeaveDay.fromJson(Map<String, dynamic>.from(v as Map))));
+    startedOn = j['startedOn'] as String?;
+    goals = ((j['goals'] as List?) ?? const []).map((e) => Goal.fromJson(Map<String, dynamic>.from(e as Map))).toList();
+    achievements =
+        ((j['achievements'] as List?) ?? const []).map((e) => Achievement.fromJson(Map<String, dynamic>.from(e as Map))).toList();
+  }
+
+  // ---------------- goals ----------------
+
+  Goal? goalById(int? id) => id == null ? null : goals.where((g) => g.id == id).firstOrNull;
+
+  Future<Goal> addGoal(String title, {String why = '', String? targetDate}) async {
+    final g = Goal(id: _newId(), title: title.trim(), why: why.trim(), targetDate: targetDate, createdOn: today);
+    goals.add(g);
+    await save();
+    return g;
+  }
+
+  /// Adds a progress note; [progress] (0-100) updates the goal's progress when given.
+  /// Reaching 100 marks the goal completed.
+  Future<void> addGoalNote(int goalId, String text, {int? progress}) async {
+    final g = goalById(goalId);
+    if (g == null || (text.trim().isEmpty && progress == null)) return;
+    final p = progress?.clamp(0, 100);
+    g.notes.insert(0, GoalNote(today, text.trim(), progress: p));
+    if (p != null) {
+      g.progress = p;
+      if (p >= 100) g.status = GoalStatus.done;
+    }
+    await save();
+  }
+
+  Future<void> deleteGoalNote(int goalId, int index) async {
+    final g = goalById(goalId);
+    if (g == null || index < 0 || index >= g.notes.length) return;
+    g.notes.removeAt(index);
+    await save();
+  }
+
+  Future<void> setGoalStatus(int goalId, String status) async {
+    final g = goalById(goalId);
+    if (g == null) return;
+    g.status = status;
+    if (status == GoalStatus.done) g.progress = 100;
+    await save();
+  }
+
+  Future<void> deleteGoal(int goalId) async {
+    goals.removeWhere((g) => g.id == goalId);
+    for (final a in achievements) {
+      if (a.goalId == goalId) a.goalId = null;
+    }
+    await save();
+  }
+
+  // ---------------- achievements ----------------
+
+  Future<void> addAchievement(String title, {String details = '', String? date, String category = 'delivery', int? goalId}) async {
+    if (title.trim().isEmpty) return;
+    achievements.add(Achievement(
+      id: _newId(),
+      title: title.trim(),
+      details: details.trim(),
+      date: date ?? today,
+      category: category,
+      goalId: goalId,
+    ));
+    await save();
+  }
+
+  Future<void> deleteAchievement(int id) async {
+    achievements.removeWhere((a) => a.id == id);
+    await save();
+  }
+
+  /// Achievements dated within [from]..[to] (inclusive), newest first.
+  List<Achievement> achievementsBetween(String from, String to) =>
+      achievements.where((a) => a.date.compareTo(from) >= 0 && a.date.compareTo(to) <= 0).toList()
+        ..sort((a, b) => b.date.compareTo(a.date) != 0 ? b.date.compareTo(a.date) : b.id.compareTo(a.id));
+
+  /// First day that counts for reports: when Daily Sprint was turned on, or the earliest
+  /// planned / leave day if that is earlier (e.g. leave entered for past days).
+  String get firstDay {
+    final dates = [?startedOn, ...tasks.map((t) => t.date), ...leaves.keys];
+    if (dates.isEmpty) return today;
+    dates.sort();
+    return dates.first;
+  }
+
+  // ---------------- leave ----------------
+
+  LeaveDay? leaveOn(String date) => leaves[date];
+
+  /// Full day off (leave or holiday): no prompts, tasks don't move onto it.
+  bool isOff(String date) => leaves[date]?.fullDayOff ?? false;
+
+  /// Marks [date] as leave / half day / holiday. On a full day off, unanswered tasks of that day
+  /// move to the next work day (labelled "Moved from …").
+  Future<int> setLeave(String date, String type, {String? note}) async {
+    leaves[date] = LeaveDay(type, note: (note == null || note.trim().isEmpty) ? null : note.trim());
+    var moved = 0;
+    if (type != LeaveType.half) {
+      for (final t in tasksFor(date).where((t) => t.status == TaskStatus.open).toList()) {
+        _apply(t, const ReviewAnswer(TaskStatus.notDone));
+        moved++;
+      }
+    }
+    await save();
+    return moved;
+  }
+
+  Future<void> clearLeave(String date) async {
+    leaves.remove(date);
+    await save();
   }
 
   Future<void> load() async {
@@ -145,6 +380,7 @@ class SprintState extends ChangeNotifier {
 
   Future<void> setEnabled(bool on) async {
     enabled = on;
+    if (on) startedOn ??= today;
     await save();
   }
 
@@ -305,7 +541,7 @@ class SprintState extends ChangeNotifier {
 
   /// Days that had a plan, newest first (today included).
   List<String> get pastDays {
-    final d = tasks.map((t) => t.date).where((d) => d.compareTo(today) <= 0).toSet().toList()..sort();
+    final d = {...tasks.map((t) => t.date), ...leaves.keys}.where((d) => d.compareTo(today) <= 0).toList()..sort();
     return d.reversed.toList();
   }
 
@@ -345,9 +581,9 @@ class SprintState extends ChangeNotifier {
   DateTime nextWorkday(DateTime from) {
     final days = workdays.isEmpty ? [1, 2, 3, 4, 5, 6, 7] : workdays;
     var d = dateOnly(from);
-    for (var i = 0; i < 7; i++) {
+    for (var i = 0; i < 60; i++) {
       d = d.add(const Duration(days: 1));
-      if (days.contains(d.weekday)) return d;
+      if (days.contains(d.weekday) && !isOff(isoDate(d))) return d;
     }
     return dateOnly(from).add(const Duration(days: 1));
   }

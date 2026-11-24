@@ -5,6 +5,8 @@ import '../format.dart' show fmtDay, fmtMinutesOfDay;
 import '../main.dart' show AppColors;
 import '../models.dart' show isoDate, dateOnly;
 import '../widgets.dart';
+import 'achievements_view.dart';
+import 'goals_view.dart';
 import 'insights_view.dart';
 import 'parked_screen.dart';
 import 'review_screen.dart';
@@ -14,6 +16,7 @@ import 'sprint_state.dart';
 
 const sprintBlue = Color(0xFF3E63DD);
 const notDoneColor = Color(0xFFC2410C);
+const leaveColor = Color(0xFF8E4EC6);
 
 /// The "Daily Sprint" tab: Today · Insights · Parked · History across the top.
 class SprintScreen extends StatelessWidget {
@@ -23,7 +26,7 @@ class SprintScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final sprint = SprintState.instance;
     return DefaultTabController(
-      length: 4,
+      length: 6,
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Daily Sprint'),
@@ -35,12 +38,16 @@ class SprintScreen extends StatelessWidget {
             ),
           ],
           bottom: TabBar(
-            labelPadding: EdgeInsets.zero,
+            isScrollable: true,
+            tabAlignment: TabAlignment.start,
+            labelPadding: const EdgeInsets.symmetric(horizontal: 14),
             labelStyle: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, letterSpacing: 0.2),
             unselectedLabelStyle: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w500, letterSpacing: 0.2),
             indicatorWeight: 3,
             tabs: [
               const Tab(height: 42, text: 'TODAY'),
+              const Tab(height: 42, text: 'GOALS'),
+              const Tab(height: 42, text: 'ACHIEVEMENTS'),
               const Tab(height: 42, text: 'INSIGHTS'),
               Tab(
                 height: 42,
@@ -64,7 +71,14 @@ class SprintScreen extends StatelessWidget {
             ],
           ),
         ),
-        body: const TabBarView(children: [TodayView(), InsightsView(), ParkedView(), SprintHistoryView()]),
+        body: const TabBarView(children: [
+          TodayView(),
+          GoalsView(),
+          AchievementsView(),
+          InsightsView(),
+          ParkedView(),
+          SprintHistoryView(),
+        ]),
       ),
     );
   }
@@ -117,6 +131,8 @@ class _TodayViewState extends State<TodayView> with AutomaticKeepAliveClientMixi
             child: Text(t.text, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600)),
           ),
           OptionRow(icon: Icons.edit_outlined, title: 'Change text', onTap: () => Navigator.pop(c, 'edit')),
+          if (t.status == TaskStatus.done)
+            OptionRow(icon: Icons.emoji_events_outlined, title: 'Add to achievements', onTap: () => Navigator.pop(c, 'win')),
           if (t.status != TaskStatus.paused)
             OptionRow(icon: Icons.pause_rounded, title: 'Pause – move to Parked', onTap: () => Navigator.pop(c, 'pause')),
           OptionRow(icon: Icons.delete_outline_rounded, title: 'Delete', color: AppColors.red, onTap: () => Navigator.pop(c, 'delete')),
@@ -129,6 +145,8 @@ class _TodayViewState extends State<TodayView> with AutomaticKeepAliveClientMixi
       case 'edit':
         final text = await editTextDialog(context, title: 'Change task', initial: t.text);
         if (text != null) await sprint.rename(t.id, text);
+      case 'win':
+        await showAchievementSheet(context, title: t.text, date: t.date);
       case 'pause':
         await sprint.pause(t.id);
         _toast('Paused – see the Parked tab');
@@ -147,6 +165,64 @@ class _TodayViewState extends State<TodayView> with AutomaticKeepAliveClientMixi
   String _dayTitle() {
     final rel = fmtDay(day);
     return rel == 'Today' || rel == 'Tomorrow' || rel == 'Yesterday' ? rel : DateFormat('EEEE').format(day);
+  }
+
+  /// "Mark as leave": full day, half day or public holiday, with an optional note.
+  Future<void> _markLeave() async {
+    var type = LeaveType.leave;
+    final note = TextEditingController();
+    final open = sprint.tasksFor(dayKey).where((t) => t.status == TaskStatus.open).length;
+    final ok = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      builder: (c) => StatefulBuilder(
+        builder: (c, set) => Padding(
+          padding: EdgeInsets.only(bottom: MediaQuery.of(c).viewInsets.bottom),
+          child: SafeArea(
+            child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(24, 0, 24, 4),
+                child: Text('Mark ${DateFormat('EEE, d MMM').format(day)} as',
+                    style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600)),
+              ),
+              for (final (value, label) in const [
+                (LeaveType.leave, 'Leave – full day'),
+                (LeaveType.half, 'Half-day leave'),
+                (LeaveType.holiday, 'Public holiday'),
+              ])
+                RadioRow(label: label, selected: type == value, onTap: () => set(() => type = value)),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(24, 4, 24, 0),
+                child: TextField(
+                  controller: note,
+                  textCapitalization: TextCapitalization.sentences,
+                  style: const TextStyle(fontSize: 15),
+                  decoration: const InputDecoration(isDense: true, hintText: 'Note (optional), e.g. Sick, Diwali'),
+                ),
+              ),
+              if (open > 0 && type != LeaveType.half)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(24, 10, 24, 0),
+                  child: Text(
+                    '$open open task${open == 1 ? '' : 's'} will move to the next work day.',
+                    style: TextStyle(fontSize: 13, color: Theme.of(c).colorScheme.onSurfaceVariant),
+                  ),
+                ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 14, 20, 12),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('Save')),
+                ),
+              ),
+            ]),
+          ),
+        ),
+      ),
+    );
+    if (ok != true || !mounted) return;
+    final moved = await sprint.setLeave(dayKey, type, note: note.text);
+    _toast(moved > 0 ? 'Saved. $moved task${moved == 1 ? '' : 's'} moved to the next work day.' : 'Saved');
   }
 
   bool _eveningPassed() {
@@ -170,7 +246,8 @@ class _TodayViewState extends State<TodayView> with AutomaticKeepAliveClientMixi
         final carryDay = isToday ? sprint.unansweredDay : null;
         final carryTasks = carryDay == null ? const <SprintTask>[] : sprint.tasksFor(carryDay).where((t) => t.status == TaskStatus.open).toList();
         final workday = sprint.workdays.contains(day.weekday);
-        final showHint = isToday && sprint.eveningOn && workday && open > 0 && !_eveningPassed();
+        final leave = sprint.leaveOn(dayKey);
+        final showHint = isToday && sprint.eveningOn && workday && open > 0 && !_eveningPassed() && leave?.fullDayOff != true;
 
         return Column(children: [
           Expanded(
@@ -213,6 +290,50 @@ class _TodayViewState extends State<TodayView> with AutomaticKeepAliveClientMixi
                     ),
                   ]),
                 ),
+
+                // ---- leave ----
+                if (leave != null)
+                  Container(
+                    margin: const EdgeInsets.fromLTRB(16, 2, 16, 6),
+                    padding: const EdgeInsets.fromLTRB(14, 8, 6, 8),
+                    decoration: BoxDecoration(
+                      color: leaveColor.withValues(alpha: light ? 0.12 : 0.22),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Row(children: [
+                      Icon(leave.type == LeaveType.holiday ? Icons.celebration_outlined : Icons.beach_access_outlined,
+                          size: 20, color: leaveColor),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          Text(leave.label, style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w600)),
+                          Text(leave.note ?? (leave.fullDayOff ? 'No check-in or reminders for this day' : 'Check-in still happens'),
+                              style: TextStyle(fontSize: 12.5, color: grey)),
+                        ]),
+                      ),
+                      TextButton(
+                        style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
+                        onPressed: () async {
+                          await sprint.clearLeave(dayKey);
+                          _toast('Leave removed');
+                        },
+                        child: const Text('Undo'),
+                      ),
+                    ]),
+                  )
+                else
+                  Center(
+                    child: TextButton.icon(
+                      style: TextButton.styleFrom(
+                        visualDensity: VisualDensity.compact,
+                        foregroundColor: grey,
+                        textStyle: TextStyle(fontFamily: theme.textTheme.bodyMedium?.fontFamily, fontSize: 13, fontWeight: FontWeight.w500),
+                      ),
+                      onPressed: () => _markLeave(),
+                      icon: const Icon(Icons.beach_access_outlined, size: 17),
+                      label: Text(isToday ? 'Mark today as leave' : 'Mark this day as leave'),
+                    ),
+                  ),
 
                 // ---- progress: one slim card ----
                 if (list.isNotEmpty)
@@ -330,7 +451,7 @@ class _TodayViewState extends State<TodayView> with AutomaticKeepAliveClientMixi
               ],
             ),
           ),
-          if (!isPast)
+          if (!isPast && leave?.fullDayOff != true)
             SprintComposer(
               controller: input,
               focus: focus,

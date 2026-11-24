@@ -128,6 +128,12 @@ class MainActivity : FlutterFragmentActivity() {
                 Sprint.arm(ctx)
                 result.success(null)
             }
+            "shareText" -> {
+                // Only on the user's tap: opens Android's share sheet with the text.
+                val send = Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, call.arguments as String)
+                startActivity(Intent.createChooser(send, "Share"))
+                result.success(null)
+            }
             "takeLaunchAction" -> { result.success(launchAction); launchAction = null }
             "saveSettings" -> { Store.saveSettings(ctx, JSONObject(call.arguments as String)); result.success(null) }
             "getHistory" -> result.success(Store.history(ctx).toString())

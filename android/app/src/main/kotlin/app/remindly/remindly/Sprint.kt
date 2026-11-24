@@ -118,6 +118,9 @@ object Sprint {
     fun onFired(ctx: Context, kind: String) {
         val s = Store.sprint(ctx)
         if (!s.optBoolean("enabled", false)) { arm(ctx); return }
+        // Full day off (leave or holiday): no morning nudge, no evening check-in.
+        val offType = s.optJSONObject("leaves")?.optJSONObject(LocalDate.now().toString())?.optString("type")
+        if (offType == "leave" || offType == "holiday") { if (kind != KIND_SNOOZE) arm(ctx); return }
         when (kind) {
             KIND_MORNING -> {
                 val (total, _, _) = todayCounts(ctx)

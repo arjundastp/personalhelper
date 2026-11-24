@@ -18,7 +18,22 @@ class Shell extends StatefulWidget {
 class _ShellState extends State<Shell> {
   final app = AppState.instance;
   final sprint = SprintState.instance;
-  int tab = 0;
+  late int tab = _startTab();
+
+  /// Which menu opens first: Settings › Display › "Open app on".
+  int _startTab() {
+    if (!sprint.enabled) return 0;
+    return switch (app.setting('startTab', 'reminders')) {
+      'sprint' => 1,
+      'last' => app.setting('lastTab', 0),
+      _ => 0,
+    };
+  }
+
+  void _select(int i) {
+    setState(() => tab = i);
+    if (app.setting('startTab', 'reminders') == 'last') app.updateSettings({'lastTab': i});
+  }
 
   @override
   void initState() {
@@ -49,7 +64,7 @@ class _ShellState extends State<Shell> {
     app.pendingOpen = null;
     final nav = Navigator.of(context);
     nav.popUntil((r) => r.isFirst);
-    setState(() => tab = 1);
+    _select(1);
     if (action == 'sprintReview') {
       nav.push(MaterialPageRoute(builder: (_) => ReviewScreen(date: sprint.today)));
     }
@@ -63,7 +78,7 @@ class _ShellState extends State<Shell> {
       body: IndexedStack(index: tab, children: const [HomeScreen(), SprintScreen()]),
       bottomNavigationBar: NavigationBar(
         selectedIndex: tab,
-        onDestinationSelected: (i) => setState(() => tab = i),
+        onDestinationSelected: _select,
         destinations: [
           const NavigationDestination(
             icon: Icon(Icons.notifications_none_rounded),

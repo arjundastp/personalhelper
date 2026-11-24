@@ -53,7 +53,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       return 'Huawei / Honor phones: in App launch, turn off "Manage automatically" and allow all options.';
     }
     if (m.contains('samsung')) {
-      return 'Samsung phones: make sure Remindly is not in "Sleeping apps" in Battery settings.';
+      return 'Samsung phones: make sure DayMate is not in "Sleeping apps" in Battery settings.';
     }
     return null;
   }
@@ -243,9 +243,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   if (v != null) await state.updateSettings({'themeMode': v});
                 },
               ),
+              if (SprintState.instance.enabled)
+                OptionRow(
+                  icon: Icons.open_in_new_rounded,
+                  title: 'Open app on',
+                  value: switch (state.setting('startTab', 'reminders')) {
+                    'sprint' => 'Daily Sprint',
+                    'last' => 'The menu I used last',
+                    _ => 'Reminders',
+                  },
+                  onTap: () async {
+                    final v = await chooseOne<String>(context,
+                        title: 'Open app on',
+                        options: const [('reminders', 'Reminders'), ('sprint', 'Daily Sprint'), ('last', 'The menu I used last')],
+                        current: state.setting('startTab', 'reminders'));
+                    if (v != null) await state.updateSettings({'startTab': v});
+                  },
+                ),
               _switch(Icons.format_size_rounded, 'Bigger text', 'Easier to read', 'largeText', false),
               const SizedBox(height: 24),
-              Center(child: Text('Remindly 1.5', style: TextStyle(fontSize: 13, color: grey))),
+              Center(child: Text('DayMate 1.6', style: TextStyle(fontSize: 13, color: grey))),
             ],
           ),
         );

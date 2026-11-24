@@ -4,6 +4,7 @@ import 'package:intl/intl.dart' hide TextDirection;
 import 'package:material_ui/material_ui.dart';
 
 import '../format.dart' show fmtDay;
+import '../models.dart' show isoDate;
 import 'sprint_state.dart';
 import 'sprint_stats.dart';
 
@@ -32,6 +33,8 @@ class SprintColors {
             const Color(0xFF202D35),
           );
   }
+
+  Color get leave => const Color(0xFFB39DDB);
 
   Color heatFor(double? rate) {
     if (rate == null) return heatNone;
@@ -135,7 +138,21 @@ class _InsightsViewState extends State<InsightsView> {
             _Card(
               title: 'Activity calendar',
               subtitle: 'Last 5 weeks · darker = more of the plan done',
-              child: _Heatmap(weeks: st.heatmap(), colors: c),
+              child: _Heatmap(weeks: st.heatmap(), colors: c, leaveOf: (d) => sprint.leaveOn(isoDate(d))),
+            ),
+
+            // ---- attendance ----
+            _Card(
+              title: 'Work days & leave',
+              subtitle: 'Half-day leave counts as 0.5',
+              child: _AttendanceTable(
+                columns: [
+                  (days == 7 ? '7 days' : '30 days', st.windowAttendance),
+                  (DateFormat('MMM').format(DateTime.now()), st.monthAttendance),
+                  ('${DateTime.now().year}', st.yearAttendance),
+                ],
+                colors: c,
+              ),
             ),
 
             // ---- best weekdays ----
@@ -483,7 +500,8 @@ class _EndedBar extends StatelessWidget {
 class _Heatmap extends StatefulWidget {
   final List<List<DayCounts?>> weeks;
   final SprintColors colors;
-  const _Heatmap({required this.weeks, required this.colors});
+  final LeaveDay? Function(DateTime day) leaveOf;
+  const _Heatmap({required this.weeks, required this.colors, required this.leaveOf});
 
   @override
   State<_Heatmap> createState() => _HeatmapState();
@@ -525,7 +543,7 @@ class _HeatmapState extends State<_Heatmap> {
                               height: 30,
                               alignment: Alignment.center,
                               decoration: BoxDecoration(
-                                color: c.heatFor(d.rate),
+                                color: widget.leaveOf(d.day)?.fullDayOff == true ? c.leave : c.heatFor(d.rate),
                                 borderRadius: BorderRadius.circular(7),
                                 border: DateUtils.isSameDay(d.day, today) || identical(d, selected)
                                     ? Border.all(color: c.ink, width: 1.5)
@@ -536,7 +554,9 @@ class _HeatmapState extends State<_Heatmap> {
                                 style: TextStyle(
                                   fontSize: 11.5,
                                   fontWeight: FontWeight.w600,
-                                  color: d.rate == null ? c.muted : inkOn(c.heatFor(d.rate)),
+                                  color: widget.leaveOf(d.day)?.fullDayOff == true
+                                      ? const Color(0xFF111B21)
+                                      : (d.rate == null ? c.muted : inkOn(c.heatFor(d.rate))),
                                 ),
                               ),
                             ),
@@ -560,6 +580,10 @@ class _HeatmapState extends State<_Heatmap> {
         const SizedBox(width: 3),
         Text('More', style: TextStyle(fontSize: 11.5, color: c.muted)),
         const Spacer(),
+        Container(width: 14, height: 14, decoration: BoxDecoration(color: c.leave, borderRadius: BorderRadius.circular(3))),
+        const SizedBox(width: 5),
+        Text('Leave', style: TextStyle(fontSize: 11.5, color: c.muted)),
+        const SizedBox(width: 10),
         Container(width: 14, height: 14, decoration: BoxDecoration(color: c.heatNone, borderRadius: BorderRadius.circular(3))),
         const SizedBox(width: 5),
         Text('No plan', style: TextStyle(fontSize: 11.5, color: c.muted)),
@@ -637,5 +661,47 @@ class _WeekdayBars extends StatelessWidget {
           ]),
         ),
     ]);
+  }
+}
+
+// ------------------------------------------------------------------ attendance table
+
+class _AttendanceTable extends StatelessWidget {
+  final List<(String, Attendance)> columns;
+  final SprintColors colors;
+  const _AttendanceTable({required this.columns, required this.colors});
+
+  String _n(double v) => v == v.roundToDouble() ? v.toInt().toString() : v.toStringAsFixed(1);
+
+  @override
+  Widget build(BuildContext context) {
+    final c = colors;
+    final rows = <(String, String Function(Attendance))>[
+      ('Working days', (a) => _n(a.workingDays)),
+      ('Leave taken', (a) => _n(a.leaveDays)),
+      ('Half days', (a) => '${a.halfDays}'),
+      ('Holidays', (a) => '${a.holidays}'),
+      ('Days reported', (a) => a.plannedDays == 0 ? '0' : '${a.reportedDays}/${a.plannedDays}'),
+    ];
+    TextStyle head = TextStyle(fontSize: 12, color: c.muted, fontWeight: FontWeight.w600);
+    return Table(
+      columnWidths: const {0: FlexColumnWidth(1.6)},
+      defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+      children: [
+        TableRow(children: [
+          const SizedBox(),
+          for (final col in columns) Padding(padding: const EdgeInsets.only(bottom: 6), child: Text(col.$1, textAlign: TextAlign.right, style: head)),
+        ]),
+        for (final (label, value) in rows)
+          TableRow(
+            decoration: BoxDecoration(border: Border(top: BorderSide(color: c.track))),
+            children: [
+              Padding(padding: const EdgeInsets.symmetric(vertical: 6), child: Text(label, style: TextStyle(fontSize: 13, color: c.ink))),
+              for (final col in columns)
+                Text(value(col.$2), textAlign: TextAlign.right, style: TextStyle(fontSize: 13.5, color: c.ink, fontWeight: FontWeight.w600)),
+            ],
+          ),
+      ],
+    );
   }
 }
