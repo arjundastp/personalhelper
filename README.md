@@ -29,15 +29,17 @@ On first start, tap **Allow** so reminders can ring and show full screen.
   **Achievements:** log wins by category and link them to goals; "Share for review" builds a ready-to-paste summary.
   Tabs across the top (Today · Goals · Achievements · Insights · Parked · History); Insights shows completion %, a daily progress chart,
   how tasks ended, an activity calendar, best weekdays and tasks that keep slipping. Code: `lib/sprint/`, `android/.../Sprint.kt`.
-- **Team summary (optional, Settings → Extras → Add Team summary):** a third bottom tab that reads yesterday's
-  Microsoft Teams chats and summarises them on the phone. Three ways to get the chats: **Teams notifications on this
-  phone** (no sign-in or admin; reads only Microsoft Teams notifications once you allow Notification access, keeps the
-  text at most 2 days), Microsoft Graph with the read-only Chat.Read permission, or your company's Microsoft 365
-  Teams MCP server –
-  summarised on the phone (Gemini Nano via ML Kit GenAI when available, otherwise a simple digest). Read-only: Chat.Read cannot write and only GET requests are made; on the MCP route only list/get/search tools can
-  be called and everything else is blocked in code (`Team.kt`). Summaries are kept 10 days; raw messages are never stored.
-  Your company's tenant and app IDs are entered in the app and stored only on the phone, so nothing company-specific
-  is in this repository or the public APK. Currently a once-a-day "Pull yesterday now" test button.
+- **Team summary (optional, Settings → Extras → Add Team summary):** a third bottom tab with a short summary of
+  your Microsoft Teams chats, written on the phone (Gemini Nano via ML Kit GenAI when available, otherwise a simple
+  digest). Summaries are kept 10 days. Three ways to get the chats:
+  - **Teams notifications on this phone** (default): no sign-in, no admin, no network. After you allow Notification
+    access, only Microsoft Teams notifications are kept, privately and for at most 2 days, to make the summary.
+  - **Microsoft Graph · Chat.Read:** sign in with your work account; needs your company's admin approval. Only
+    read requests are made, and Chat.Read cannot write.
+  - **Company Teams MCP server (Agent 365):** only list/get/search tools can be called; everything else is
+    blocked in code (`Team.kt`).
+  For the sign-in options, your company's tenant and app IDs are typed into the app and stored only on the phone,
+  so nothing company-specific is in this repository or the public APK.
 - **Backup & restore:** save everything to a file on your phone and load it back (Settings → Backup).
 - **Start screen:** choose whether the app opens on Reminders, Daily Sprint or the last one used.
 - **Full-screen alert:** turns the screen on and shows over the lock screen, with large **Done** and **Snooze** buttons.
