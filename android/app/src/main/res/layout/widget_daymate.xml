@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- DayMate home-screen widget: a compact version of the app's Home screen. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_root"
+    android:layout_width="match_parent" android:layout_height="match_parent"
+    android:orientation="vertical">
+
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:orientation="vertical" android:background="@drawable/widget_header"
+        android:paddingStart="16dp" android:paddingEnd="16dp" android:paddingTop="10dp" android:paddingBottom="10dp">
+        <TextView android:id="@+id/w_date" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:textSize="12sp" android:textColor="#E6FFFFFF" android:maxLines="1" android:ellipsize="end" />
+        <TextView android:id="@+id/w_greeting" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:textSize="18sp" android:textStyle="bold" android:textColor="#FFFFFF" android:maxLines="1" android:ellipsize="end" />
+        <TextView android:id="@+id/w_line" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:textSize="12.5sp" android:textColor="#F2FFFFFF" android:maxLines="1" android:ellipsize="end" />
+    </LinearLayout>
+
+    <LinearLayout android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1"
+        android:orientation="vertical" android:background="@drawable/widget_body"
+        android:paddingStart="16dp" android:paddingEnd="16dp" android:paddingTop="6dp" android:paddingBottom="8dp">
+
+        <LinearLayout android:id="@+id/att_row" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="horizontal" android:gravity="center_vertical" android:paddingTop="5dp" android:paddingBottom="5dp">
+            <ImageView android:id="@+id/att_icon" android:layout_width="18dp" android:layout_height="18dp"
+                android:src="@drawable/ic_w_attention" android:importantForAccessibility="no" />
+            <LinearLayout android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content"
+                android:layout_marginStart="10dp" android:orientation="vertical">
+                <TextView android:id="@+id/att_title" android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:textSize="13.5sp" android:textStyle="bold" android:textColor="@color/w_ink" android:maxLines="1" android:ellipsize="end" />
+                <TextView android:id="@+id/att_sub" android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:textSize="12sp" android:textColor="@color/w_muted" android:maxLines="2" android:ellipsize="end" />
+            </LinearLayout>
+        </LinearLayout>
+        <View android:layout_width="match_parent" android:layout_height="1dp" android:background="@color/w_divider"
+            android:layout_marginTop="2dp" android:layout_marginBottom="2dp" />
+        <LinearLayout android:id="@+id/next_row" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="horizontal" android:gravity="center_vertical" android:paddingTop="5dp" android:paddingBottom="5dp">
+            <ImageView android:id="@+id/next_icon" android:layout_width="18dp" android:layout_height="18dp" android:src="@drawable/ic_w_bell"
+                android:importantForAccessibility="no" />
+            <TextView android:id="@+id/next_text" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content"
+                android:layout_marginStart="10dp" android:textSize="13sp" android:textColor="@color/w_ink"
+                android:maxLines="1" android:ellipsize="end" />
+        </LinearLayout>
+        <LinearLayout android:id="@+id/sprint_row" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="horizontal" android:gravity="center_vertical" android:paddingTop="5dp" android:paddingBottom="5dp">
+            <ImageView android:id="@+id/sprint_icon" android:layout_width="18dp" android:layout_height="18dp" android:src="@drawable/ic_w_task"
+                android:importantForAccessibility="no" />
+            <TextView android:id="@+id/sprint_text" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content"
+                android:layout_marginStart="10dp" android:textSize="13sp" android:textColor="@color/w_ink"
+                android:maxLines="1" android:ellipsize="end" />
+        </LinearLayout>
+        <LinearLayout android:id="@+id/team_row" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="horizontal" android:gravity="center_vertical" android:paddingTop="5dp" android:paddingBottom="5dp">
+            <ImageView android:id="@+id/team_icon" android:layout_width="18dp" android:layout_height="18dp" android:src="@drawable/ic_w_chat"
+                android:importantForAccessibility="no" />
+            <TextView android:id="@+id/team_text" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content"
+                android:layout_marginStart="10dp" android:textSize="13sp" android:textColor="@color/w_ink"
+                android:maxLines="1" android:ellipsize="end" />
+        </LinearLayout>
+    </LinearLayout>
+</LinearLayout>

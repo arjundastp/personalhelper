@@ -7,6 +7,7 @@ import '../sprint/sprint_state.dart';
 import '../team/team_state.dart';
 import '../state.dart';
 import '../widgets.dart';
+import '../widgets_pin.dart';
 import 'sound_picker_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -290,6 +291,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   if (v != null) await state.updateSettings({'themeMode': v});
                 },
               ),
+              OptionRow(
+                icon: Icons.widgets_outlined,
+                title: 'Home screen widget',
+                value: 'Your day at a glance on the phone\'s home screen',
+                onTap: () => addHomeWidget(context),
+              ),
               if (SprintState.instance.enabled || TeamState.instance.enabled)
                 OptionRow(
                   icon: Icons.open_in_new_rounded,
@@ -317,7 +324,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
               _switch(Icons.format_size_rounded, 'Bigger text', 'Easier to read', 'largeText', false),
               const SizedBox(height: 24),
-              Center(child: Text('DayMate 1.12.1', style: TextStyle(fontSize: 13, color: grey))),
+              Center(child: Text('DayMate 1.13', style: TextStyle(fontSize: 13, color: grey))),
             ],
           ),
         );

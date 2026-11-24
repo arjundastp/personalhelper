@@ -59,6 +59,7 @@ object Store {
         tmp.writeText(obj.toString())
         if (!tmp.renameTo(f)) { f.writeText(obj.toString()); tmp.delete() }
         onChanged?.invoke()
+        DayMateWidget.refresh(ctx)
     }
 
     // ---------------- reminders ----------------

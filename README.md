@@ -4,7 +4,7 @@
 
 ## Download
 
-**[⬇ Download DayMate for Android](https://github.com/arjundastp/personalhelper/raw/main/downloads/DayMate.apk)** (version 1.12.1, about 20 MB, Android 8.0 or newer)
+**[⬇ Download DayMate for Android](https://github.com/arjundastp/personalhelper/raw/main/downloads/DayMate.apk)** (version 1.13, about 20 MB, Android 8.0 or newer)
 
 - Most phones: [`DayMate.apk`](https://github.com/arjundastp/personalhelper/raw/main/downloads/DayMate.apk)
 - Older or very low-cost phones (32-bit): [`DayMate-older-phones.apk`](https://github.com/arjundastp/personalhelper/raw/main/downloads/DayMate-older-phones.apk)
@@ -50,6 +50,9 @@ On first start, tap **Allow** so reminders can ring and show full screen.
   evening check-in, goals close to their target date), **Your most efficient day** (the weekday you finish the most
   tasks on, over the last 8 weeks, and your best day this month) and **Today at a glance** (next reminder, today's
   tasks, Teams summary). Tap the greeting to set your name.
+- **Home-screen widget:** a compact Home page on your phone's home screen: greeting, what needs your attention,
+  next reminder, today's tasks and Teams. Add it from Settings → Home screen widget (or the card on Home), or
+  long-press the home screen → Widgets → DayMate. It updates when your data changes and every 30 minutes.
 - **Backup & restore:** save everything to a file on your phone and load it back (Settings → Backup).
 - **Start screen:** choose whether the app opens on Reminders, Daily Sprint or the last one used.
 - **Full-screen alert:** turns the screen on and shows over the lock screen, with large **Done** and **Snooze** buttons.

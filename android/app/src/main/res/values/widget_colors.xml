@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="w_body">#FFFFFF</color>
+    <color name="w_ink">#111B21</color>
+    <color name="w_muted">#667781</color>
+    <color name="w_icon">#54656F</color>
+    <color name="w_divider">#E9EDEF</color>
+    <color name="w_attention">#E5773A</color>
+    <color name="w_ok">#00A884</color>
+</resources>

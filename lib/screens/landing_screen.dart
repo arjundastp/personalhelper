@@ -7,7 +7,9 @@ import '../sprint/review_screen.dart';
 import '../sprint/sprint_state.dart';
 import '../sprint/sprint_stats.dart';
 import '../state.dart';
+import '../native.dart';
 import '../team/team_state.dart';
+import '../widgets_pin.dart';
 import 'history_screen.dart';
 
 /// The first screen: a warm greeting, what needs you today, and your most efficient day.
@@ -68,6 +70,7 @@ class LandingScreen extends StatelessWidget {
                 const SizedBox(height: 16),
                 const _SectionTitle('Today at a glance'),
                 _Glance(onOpenTab: onOpenTab),
+                const _WidgetPromo(),
               ],
             ),
           ),
@@ -658,6 +661,78 @@ class _GlanceRow extends StatelessWidget {
               ),
             ),
             Icon(Icons.chevron_right_rounded, color: c.muted, size: 20),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// A quiet suggestion to add the home-screen widget; hidden once a widget is placed or dismissed.
+class _WidgetPromo extends StatefulWidget {
+  const _WidgetPromo();
+
+  @override
+  State<_WidgetPromo> createState() => _WidgetPromoState();
+}
+
+class _WidgetPromoState extends State<_WidgetPromo> with WidgetsBindingObserver {
+  int? placed;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _check();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState s) {
+    if (s == AppLifecycleState.resumed) _check();
+  }
+
+  Future<void> _check() async {
+    final n = await Native.widgetCount().catchError((_) => 1);
+    if (mounted) setState(() => placed = n);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final app = AppState.instance;
+    if (placed != 0 || app.setting('widgetPromoHidden', false) == true) return const SizedBox.shrink();
+    final c = SprintColors.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(top: 16),
+      child: _Card(
+        onTap: () => addHomeWidget(context),
+        padding: const EdgeInsets.fromLTRB(14, 6, 4, 6),
+        child: Row(
+          children: [
+            Icon(Icons.widgets_outlined, color: c.done, size: 22),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Add DayMate to your home screen',
+                    style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w600, color: c.ink),
+                  ),
+                  Text('See this page at a glance, without opening the app', style: TextStyle(fontSize: 12.5, color: c.muted)),
+                ],
+              ),
+            ),
+            IconButton(
+              tooltip: 'Hide',
+              icon: Icon(Icons.close_rounded, size: 18, color: c.muted),
+              onPressed: () => app.updateSettings({'widgetPromoHidden': true}),
+            ),
           ],
         ),
       ),

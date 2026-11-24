@@ -173,6 +173,8 @@ class MainActivity : FlutterFragmentActivity() {
                     .getOrElse { JSONObject().put("ok", false).put("error", it.message ?: it.javaClass.simpleName) }
                 main.post { result.success(out.toString()) }
             }.start()
+            "pinWidget" -> result.success(runCatching { DayMateWidget.requestPin(ctx) }.getOrDefault(false))
+            "widgetCount" -> result.success(DayMateWidget.count(ctx))
             "takeLaunchAction" -> { result.success(launchAction); launchAction = null }
             "saveSettings" -> { Store.saveSettings(ctx, JSONObject(call.arguments as String)); result.success(null) }
             "getHistory" -> result.success(Store.history(ctx).toString())

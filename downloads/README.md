@@ -1,4 +1,4 @@
-# Downloads – DayMate 1.12.1
+# Downloads – DayMate 1.13
 
 - **[DayMate.apk](DayMate.apk)**: almost every Android phone from 2017 onwards. Start with this one.
 - **[DayMate-older-phones.apk](DayMate-older-phones.apk)**: only if the first one says it isn't compatible with your phone (older 32-bit phones).

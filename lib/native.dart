@@ -12,6 +12,12 @@ class Native {
 
   static Future<void> sync() => _ch.invokeMethod('sync');
 
+  /// Asks the launcher to place the DayMate home-screen widget. False when the launcher can't.
+  static Future<bool> pinWidget() async => (await _ch.invokeMethod<bool>('pinWidget')) ?? false;
+
+  /// How many DayMate widgets are on the home screen.
+  static Future<int> widgetCount() async => (await _ch.invokeMethod<int>('widgetCount')) ?? 0;
+
   static Future<List<Reminder>> reminders() async {
     final s = await _ch.invokeMethod<String>('getReminders');
     return (jsonDecode(s ?? '[]') as List).map((e) => Reminder.fromJson(e as Map<String, dynamic>)).toList();
