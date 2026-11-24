@@ -48,12 +48,16 @@ class _SetupViewState extends State<_SetupView> {
   final t = TeamState.instance;
   late final tenant = TextEditingController(text: t.tenantId);
   late final client = TextEditingController(text: t.clientId);
+  late final scope = TextEditingController(text: t.scope.isEmpty ? TeamState.defaultScope : t.scope);
+  late final server = TextEditingController(text: t.serverUrl.isEmpty ? TeamState.defaultServer : t.serverUrl);
   String? error;
 
   @override
   void dispose() {
     tenant.dispose();
     client.dispose();
+    scope.dispose();
+    server.dispose();
     super.dispose();
   }
 
@@ -63,9 +67,14 @@ class _SetupViewState extends State<_SetupView> {
       return;
     }
     setState(() => error = null);
-    await t.setIds(tenant.text, client.text);
+    await t.setIds(tenant.text, client.text, scope: scope.text, serverUrl: server.text);
     final e = await t.signIn();
-    if (mounted && e != null) setState(() => error = 'Sign-in did not work: $e');
+    if (mounted && e != null) {
+      setState(() => error = e.contains('AADSTS650052')
+          ? 'Your company has not switched on the Microsoft service this permission belongs to (error AADSTS650052). '
+              'Ask IT to enable it, or paste the Teams server permission your company uses under Advanced.\n\n$e'
+          : 'Sign-in did not work: $e');
+    }
   }
 
   Widget _promise(SprintColors c, String title, String text) => Padding(
@@ -115,10 +124,40 @@ class _SetupViewState extends State<_SetupView> {
           style: const TextStyle(fontSize: 14.5),
           decoration: const InputDecoration(labelText: 'Application (client) ID', isDense: true),
         ),
+        Theme(
+          data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+          child: ExpansionTile(
+            tilePadding: EdgeInsets.zero,
+            childrenPadding: EdgeInsets.zero,
+            title: Text('Advanced (only if IT gives you different values)', style: TextStyle(fontSize: 13.5, color: c.muted)),
+            children: [
+              TextField(
+                controller: scope,
+                style: const TextStyle(fontSize: 13),
+                decoration: const InputDecoration(labelText: 'Teams server permission (scope)', isDense: true),
+              ),
+              TextField(
+                controller: server,
+                style: const TextStyle(fontSize: 13),
+                decoration: const InputDecoration(labelText: 'Teams server address', isDense: true),
+              ),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton(
+                  onPressed: () => setState(() {
+                    scope.text = TeamState.defaultScope;
+                    server.text = TeamState.defaultServer;
+                  }),
+                  child: const Text('Reset to defaults'),
+                ),
+              ),
+            ],
+          ),
+        ),
         if (error != null)
           Padding(
             padding: const EdgeInsets.only(top: 10),
-            child: Text(error!, style: const TextStyle(fontSize: 13, color: AppColors.red)),
+            child: SelectableText(error!, style: const TextStyle(fontSize: 13, color: AppColors.red)),
           ),
         const SizedBox(height: 18),
         SizedBox(

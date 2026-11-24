@@ -34,8 +34,13 @@ import java.time.ZoneId
  *  - The only network hosts are Microsoft sign-in and the Agent 365 MCP endpoint.
  */
 object Team {
-    /** Agent 365 tooling gateway resource, Teams scope (delegated). */
-    private const val SCOPE = "ea9ffc3e-8a23-4a7d-836d-234d7c7565c1/McpServers.Teams.All"
+    /**
+     * Default permission: the shared Agent 365 Tools resource with the Teams scope. Tenants on the
+     * newer per-server model use the Teams server's own app ID with Tools.ListInvoke.All instead;
+     * the user can paste that (and a different server address) under Advanced in setup.
+     */
+    const val DEFAULT_SCOPE = "ea9ffc3e-8a23-4a7d-836d-234d7c7565c1/McpServers.Teams.All"
+    const val DEFAULT_SERVER = "https://agent365.svc.cloud.microsoft/agents/tenants/{tenantId}/servers/mcp_TeamsServer"
     /** Redirect registered in Entra for the DayMate release key. */
     private const val REDIRECT = "msauth://app.remindly.remindly/ymbEzhxy1RuqwwTJiVcOaBSdvIA%3D"
     private const val MAX_CHATS = 30
@@ -58,6 +63,11 @@ object Team {
 
     private var app: ISingleAccountPublicClientApplication? = null
     private var appKey: String? = null
+
+    private fun scope(ctx: Context): String = Store.team(ctx).optString("scope").trim().ifEmpty { DEFAULT_SCOPE }
+
+    private fun server(ctx: Context, tenant: String): String =
+        Store.team(ctx).optString("serverUrl").trim().ifEmpty { DEFAULT_SERVER }.replace("{tenantId}", tenant)
 
     private fun ids(ctx: Context): Pair<String, String> {
         val t = Store.team(ctx)
@@ -101,7 +111,7 @@ object Team {
                     c.signIn(
                         SignInParameters.builder()
                             .withActivity(activity)
-                            .withScopes(listOf(SCOPE))
+                            .withScopes(listOf(scope(activity)))
                             .withCallback(object : AuthenticationCallback {
                                 override fun onSuccess(r: IAuthenticationResult) = done(Result.success(r.account.username))
                                 override fun onError(e: MsalException) = done(Result.failure(e))
@@ -131,7 +141,7 @@ object Team {
             AcquireTokenSilentParameters.Builder()
                 .forAccount(account)
                 .fromAuthority("https://login.microsoftonline.com/$tenant")
-                .withScopes(listOf(SCOPE))
+                .withScopes(listOf(scope(ctx)))
                 .build()
         )
         return r.accessToken to account.username
@@ -276,7 +286,7 @@ object Team {
         val from = day.atStartOfDay(zone).toInstant()
         val to = day.plusDays(1).atStartOfDay(zone).toInstant()
 
-        val mcp = Mcp("https://agent365.svc.cloud.microsoft/agents/tenants/$tenant/servers/mcp_TeamsServer", accessToken)
+        val mcp = Mcp(server(ctx, tenant), accessToken)
         mcp.start()
         val all = mcp.tools()
         val readTools = all.filter { isReadOnlyTool(it.optString("name")) }

@@ -45,6 +45,8 @@ class TeamState extends ChangeNotifier {
   bool enabled = false;
   String tenantId = '';
   String clientId = '';
+  String scope = ''; // empty = app default (shared Agent 365 Tools, Teams scope)
+  String serverUrl = ''; // empty = app default Teams MCP server address
   String? account;
   String? lastTestPull; // yyyy-MM-dd of the last manual test pull (limited to once a day)
   Map<String, dynamic> lastDiagnostics = {};
@@ -65,6 +67,8 @@ class TeamState extends ChangeNotifier {
         'enabled': enabled,
         'tenantId': tenantId,
         'clientId': clientId,
+        'scope': scope,
+        'serverUrl': serverUrl,
         'account': account,
         'lastTestPull': lastTestPull,
         'lastDiagnostics': lastDiagnostics,
@@ -76,6 +80,8 @@ class TeamState extends ChangeNotifier {
     enabled = j['enabled'] as bool? ?? false;
     tenantId = j['tenantId'] as String? ?? '';
     clientId = j['clientId'] as String? ?? '';
+    scope = j['scope'] as String? ?? '';
+    serverUrl = j['serverUrl'] as String? ?? '';
     account = j['account'] as String?;
     lastTestPull = j['lastTestPull'] as String?;
     lastDiagnostics = Map<String, dynamic>.from((j['lastDiagnostics'] as Map?) ?? const {});
@@ -112,10 +118,17 @@ class TeamState extends ChangeNotifier {
   static final _guid = RegExp(r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$');
   static bool validId(String v) => _guid.hasMatch(v.trim());
 
-  Future<void> setIds(String tenant, String client) async {
-    final changed = tenant.trim() != tenantId || client.trim() != clientId;
+  static const defaultScope = 'ea9ffc3e-8a23-4a7d-836d-234d7c7565c1/McpServers.Teams.All';
+  static const defaultServer = 'https://agent365.svc.cloud.microsoft/agents/tenants/{tenantId}/servers/mcp_TeamsServer';
+
+  Future<void> setIds(String tenant, String client, {String? scope, String? serverUrl}) async {
+    final s = (scope ?? this.scope).trim();
+    final u = (serverUrl ?? this.serverUrl).trim();
+    final changed = tenant.trim() != tenantId || client.trim() != clientId || s != this.scope;
     tenantId = tenant.trim();
     clientId = client.trim();
+    this.scope = s == defaultScope ? '' : s;
+    this.serverUrl = u == defaultServer ? '' : u;
     if (changed) account = null; // a different registration needs a fresh sign-in
     await save();
   }
@@ -187,6 +200,8 @@ class TeamState extends ChangeNotifier {
     await signOut();
     tenantId = '';
     clientId = '';
+    scope = '';
+    serverUrl = '';
     lastTestPull = null;
     lastDiagnostics = {};
     lastError = null;
@@ -202,6 +217,7 @@ class TeamState extends ChangeNotifier {
       'DayMate Team summary – connection check',
       'Date: ${lastTestPull ?? '-'}',
       'Result: ${lastError == null ? 'OK' : 'Error – $lastError'}',
+      'Permission: ${scope.isEmpty ? 'default' : scope} · Server: ${serverUrl.isEmpty ? 'default' : 'custom'}',
       'Tools on server: ${d['toolsTotal'] ?? '-'} (read-only allowed: ${(d['toolsAllowed'] as List?)?.length ?? '-'}, blocked: ${d['toolsBlocked'] ?? '-'})',
       'Allowed tools: ${(d['toolsAllowed'] as List?)?.join(', ') ?? '-'}',
       'Chat tool: ${d['chatTool'] ?? '-'} · Message tool: ${d['messageTool'] ?? '-'}',

@@ -4,7 +4,7 @@
 
 ## Download
 
-**[⬇ Download DayMate for Android](https://github.com/arjundastp/personalhelper/raw/main/downloads/DayMate.apk)** (version 1.8, about 20 MB, Android 8.0 or newer)
+**[⬇ Download DayMate for Android](https://github.com/arjundastp/personalhelper/raw/main/downloads/DayMate.apk)** (version 1.8.1, about 20 MB, Android 8.0 or newer)
 
 - Most phones: [`DayMate.apk`](https://github.com/arjundastp/personalhelper/raw/main/downloads/DayMate.apk)
 - Older or very low-cost phones (32-bit): [`DayMate-older-phones.apk`](https://github.com/arjundastp/personalhelper/raw/main/downloads/DayMate-older-phones.apk)
