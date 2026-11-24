@@ -53,3 +53,4 @@ dist/
 
 # Gradle output inside android/
 /android/build/
+test_screens/failures/
