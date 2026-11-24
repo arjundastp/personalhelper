@@ -4,11 +4,10 @@ An offline Android reminder app (Flutter UI with a native Android alarm engine).
 
 ## Download
 
-**[⬇ Download Remindly for Android](https://github.com/arjundastp/personalhelper/releases/latest/download/Remindly.apk)** (about 18 MB, Android 8.0 or newer)
+**[⬇ Download Remindly for Android](https://github.com/arjundastp/personalhelper/raw/main/downloads/Remindly.apk)** (version 1.3, about 18 MB, Android 8.0 or newer)
 
-- Most phones: [`Remindly.apk`](https://github.com/arjundastp/personalhelper/releases/latest/download/Remindly.apk)
-- Older or very low-cost phones (32-bit): [`Remindly-older-phones.apk`](https://github.com/arjundastp/personalhelper/releases/latest/download/Remindly-older-phones.apk)
-- All versions: [Releases](https://github.com/arjundastp/personalhelper/releases)
+- Most phones: [`Remindly.apk`](https://github.com/arjundastp/personalhelper/raw/main/downloads/Remindly.apk)
+- Older or very low-cost phones (32-bit): [`Remindly-older-phones.apk`](https://github.com/arjundastp/personalhelper/raw/main/downloads/Remindly-older-phones.apk)
 
 To install: open the downloaded file on your phone. If Android asks, allow your browser or Files app to install apps.
 On first start, tap **Allow** so reminders can ring and show full screen.
