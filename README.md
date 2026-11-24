@@ -4,7 +4,7 @@
 
 ## Download
 
-**[⬇ Download DayMate for Android](https://github.com/arjundastp/personalhelper/raw/main/downloads/DayMate.apk)** (version 1.10, about 20 MB, Android 8.0 or newer)
+**[⬇ Download DayMate for Android](https://github.com/arjundastp/personalhelper/raw/main/downloads/DayMate.apk)** (version 1.10.1, about 20 MB, Android 8.0 or newer)
 
 - Most phones: [`DayMate.apk`](https://github.com/arjundastp/personalhelper/raw/main/downloads/DayMate.apk)
 - Older or very low-cost phones (32-bit): [`DayMate-older-phones.apk`](https://github.com/arjundastp/personalhelper/raw/main/downloads/DayMate-older-phones.apk)
@@ -40,7 +40,7 @@ On first start, tap **Allow** so reminders can ring and show full screen.
     blocked in code (`Team.kt`).
   - **Summaries from my endpoint (Claude routine):** a scheduled Claude routine reads Teams with Claude's
     Microsoft 365 connector (read-only), writes the summary and sends it to your own small Cloudflare Worker;
-    DayMate only reads it with a separate read key. Summaries there expire after 10 days. In this mode chats are
+    DayMate only reads it with a separate read key. Summaries there expire after 2 days. In this mode chats are
     processed in the cloud, not on the phone. Setup and the routine prompt: [`tools/cloudflare-worker/`](tools/cloudflare-worker/).
   For the sign-in options, your company's tenant and app IDs are typed into the app and stored only on the phone,
   so nothing company-specific is in this repository or the public APK.

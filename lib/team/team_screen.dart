@@ -57,7 +57,7 @@ class _SetupViewState extends State<_SetupView> {
   /// Summaries written by a Claude routine and stored on your own Cloudflare Worker.
   List<Widget> _endpointSetup(SprintColors c) => [
     _promise(c, 'Made by your Claude routine.', 'The routine reads Teams with Claude\'s Microsoft 365 connector and writes the summary.'),
-    _promise(c, 'Your own endpoint.', 'Stored on your Cloudflare Worker for 10 days. DayMate only reads it, with the read key.'),
+    _promise(c, 'Your own endpoint.', 'Kept on your Cloudflare Worker for only 2 days. DayMate only reads it, with the read key.'),
     _promise(c, 'Note:', 'In this mode chats are processed in the cloud (Claude), not on the phone.'),
     const SizedBox(height: 10),
     TextField(

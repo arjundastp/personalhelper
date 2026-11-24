@@ -7,7 +7,7 @@ Claude routine ──POST (write key)──▶ Cloudflare Worker + KV ◀──G
 ```
 
 - Two different secret keys: the routine can only **write**, the app can only **read**.
-- Every summary is deleted automatically after **10 days**.
+- Every summary is deleted automatically after **2 days**.
 - Fits easily in Cloudflare's free plan (one small write a day).
 
 ## 1. Create the Worker (about 10 minutes, all in the browser)
@@ -53,7 +53,7 @@ See [ROUTINE_PROMPT.md](ROUTINE_PROMPT.md).
 ## Privacy notes
 
 - In this mode your Teams chats are read and summarised by Claude (cloud) through the Microsoft 365 connector your
-  company approved; the summaries are stored on your Cloudflare account for up to 10 days.
+  company approved; the summaries are stored on your Cloudflare account for up to 2 days (DayMate keeps its own copy on the phone for 10 days).
   Check this fits your company's rules for work data.
 - Keep both keys secret. If one leaks: change it in Cloudflare (Settings → Variables and Secrets) and update the
   routine (WRITE_KEY) or DayMate (READ_KEY).

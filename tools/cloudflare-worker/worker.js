@@ -3,7 +3,7 @@
  *
  * The Claude routine POSTs one summary per day; the DayMate app GETs them.
  * Two separate secret keys: WRITE_KEY (routine only) and READ_KEY (DayMate only).
- * Every summary expires automatically after 10 days.
+ * Every summary expires automatically after 2 days.
  *
  * Bindings (Worker → Settings):
  *   KV namespace:  SUMMARIES
@@ -15,7 +15,7 @@
  *   GET  /health                    → {"ok":true}   (no secrets, no data)
  */
 
-const KEEP_SECONDS = 10 * 24 * 60 * 60; // 10 days
+const KEEP_SECONDS = 2 * 24 * 60 * 60; // 2 days
 const MAX_BYTES = 200_000;
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 

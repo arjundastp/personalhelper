@@ -5,7 +5,7 @@ Run this as a **scheduled routine** in your company's Claude, with the **Microso
 
 ## Before you paste the prompt
 
-1. **Schedule:** every weekday at about **6:45 AM** your time (DayMate checks when you open it).
+1. **Schedule:** every weekday at about **6:45 AM IST** (DayMate checks when you open it).
 2. **Connector:** enable **Microsoft 365** for this routine (only this one is needed).
 3. **Network:** the routine's environment must be allowed to reach your Worker host
    `daymate-summary.<your-subdomain>.workers.dev` (add it to the environment's allowed hosts).
@@ -26,7 +26,12 @@ STRICT RULES
 - Use the Microsoft 365 connector ONLY to read. Never send, post, reply, react, edit, delete, forward, schedule or create anything in Teams, Outlook or anywhere in Microsoft 365. If a step would need a write action, skip it.
 - Send the summary ONLY to my DayMate endpoint (step 4). Do not send it, or any message content, anywhere else.
 - Do not copy passwords, keys, tokens, bank or personal ID numbers, or health details into the summary. Summarise around them.
-- My time zone is <YOUR TIME ZONE, e.g. Asia/Kolkata>. "Yesterday" means 00:00–23:59 of the previous day in that time zone.
+- My time zone is IST (India Standard Time, Asia/Kolkata, UTC+05:30). "Yesterday" means 00:00–23:59 IST of the previous day.
+
+WHAT MATTERS TO ME (put these first, skip small talk)
+1. PULSE: anything about Pulse – messages, chats or channels that mention Pulse, and discussions about its work, releases, issues, decisions, deadlines, metrics or people working on it. Treat a chat or channel with "Pulse" in its name as Pulse-related.
+2. NEEDS MY ATTENTION: I am @mentioned or named; someone asks me a question, asks for my review, approval, input or decision; a task is assigned to me; a deadline, escalation, blocker, incident or customer issue involves me or my work; my manager or lead says something to me directly; a question to me is still unanswered.
+3. Everything else: only important decisions or changes. Leave out greetings, thanks, jokes, emoji-only replies and routine chatter.
 
 STEPS
 1. Work out yesterday's date (YYYY-MM-DD) in my time zone.
@@ -41,9 +46,9 @@ STEPS
   "date": "YYYY-MM-DD",
   "generatedAt": <current time as Unix epoch milliseconds>,
   "account": "Claude routine",
-  "highlights": ["3 to 5 short sentences: the most important things that happened across all chats"],
+  "highlights": ["3 to 6 short sentences. Pulse items first, each starting with 'Pulse: '. Then items that need my attention, then any other important decision"],
   "actions": [
-    {"text": "Something I need to do or answer, with who asked and by when if known", "source": "chat or channel name"}
+    {"text": "What I need to do or answer, who asked, and by when if known. Start with 'Pulse: ' if it is about Pulse", "source": "chat or channel name"}
   ],
   "chats": [
     {"name": "chat/channel name, or 'Chat with <person>' for 1:1", "count": <number of messages that day>,
@@ -53,8 +58,9 @@ STEPS
 }
    Rules for the JSON:
    - Plain, short English. Each highlight and point under 160 characters.
-   - "actions": only real requests to me (mentions, direct questions, assigned tasks). Use [] if none.
-   - "chats": only chats/channels that had messages yesterday, most active first.
+   - "actions": everything from "NEEDS MY ATTENTION" above, most urgent first (Pulse items before others at the same urgency). Do not miss an unanswered question to me. Use [] if none.
+   - "chats": Pulse-related chats/channels first, then chats with something for me, then the rest by activity. Leave out chats that had only small talk.
+   - If there was nothing about Pulse, do not invent anything; just leave Pulse out.
    - If there were no messages at all, still send the JSON with "highlights": ["No Teams messages yesterday."] and empty lists.
 
 4. Send it with this exact command (and nothing else that sends data):
