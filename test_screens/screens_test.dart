@@ -280,6 +280,11 @@ void main() {
     await shot(t, 't5_team_endpoint', const TeamScreen());
     teamJson = {};
   });
+  testWidgets('team settings endpoint', (t) async {
+    teamJson = {...teamSample(), 'mode': 'endpoint', 'endpointUrl': 'https://daymate-summary.example.workers.dev', 'readKey': 'r' * 40};
+    await shot(t, 't6_team_settings_endpoint', const TeamSettingsScreen());
+    teamJson = {};
+  });
   testWidgets('team settings', (t) async {
     teamJson = teamSample();
     await shot(t, 't3_team_settings', const TeamSettingsScreen());

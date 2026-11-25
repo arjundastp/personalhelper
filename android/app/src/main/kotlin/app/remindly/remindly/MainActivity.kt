@@ -73,6 +73,9 @@ class MainActivity : FlutterFragmentActivity() {
             // Opening the review answers the evening alert, so stop it ringing.
             if (AlarmService.current?.id == Sprint.RING_ID) AlarmService.send(this, AlarmService.ACTION_DISMISS)
             i.removeExtra("openSprintReview")
+        } else if (i?.getBooleanExtra("openTeam", false) == true) {
+            launchAction = "team"
+            i.removeExtra("openTeam")
         } else if (i?.getBooleanExtra("openSprint", false) == true) {
             launchAction = "sprint"
             i.removeExtra("openSprint")
@@ -160,7 +163,8 @@ class MainActivity : FlutterFragmentActivity() {
                 result.success(null)
             }
             "getTeam" -> result.success(Store.team(ctx).toString())
-            "saveTeam" -> { Store.saveTeam(ctx, JSONObject(call.arguments as String)); result.success(null) }
+            "saveTeam" -> { Store.saveTeam(ctx, JSONObject(call.arguments as String)); TeamAlert.arm(ctx); result.success(null) }
+            "teamTestAlert" -> result.success(TeamAlert.test(ctx))
             "teamSignIn" -> Team.signIn(this) { r ->
                 r.fold(
                     { result.success(JSONObject().put("ok", true).put("account", it).toString()) },

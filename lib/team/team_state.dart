@@ -55,6 +55,10 @@ class TeamState extends ChangeNotifier {
   String endpointUrl = ''; // endpoint mode: e.g. https://daymate-summary.<you>.workers.dev
   String readKey = ''; // endpoint mode: READ_KEY of the Worker (stored only on this phone)
   int lastFetched = 0;
+  bool alertOn = true; // endpoint mode: morning notification when the new summary arrives
+  int alertMin = 8 * 60 + 20; // 8:20 AM, after the Claude routine's 8 AM run
+  String? seenDate; // newest summary already opened in the app (no alert for it)
+  String? alertedDate; // newest summary already alerted (written by the phone's background check)
   String scope = ''; // MCP only; empty = app default (shared Agent 365 Tools, Teams scope)
   String serverUrl = ''; // empty = app default Teams MCP server address
   String? account;
@@ -87,6 +91,10 @@ class TeamState extends ChangeNotifier {
     'endpointUrl': endpointUrl,
     'readKey': readKey,
     'lastFetched': lastFetched,
+    'alertOn': alertOn,
+    'alertMin': alertMin,
+    'seenDate': seenDate,
+    'alertedDate': alertedDate,
     'scope': scope,
     'serverUrl': serverUrl,
     'account': account,
@@ -108,6 +116,10 @@ class TeamState extends ChangeNotifier {
     endpointUrl = j['endpointUrl'] as String? ?? '';
     readKey = j['readKey'] as String? ?? '';
     lastFetched = (j['lastFetched'] as num?)?.toInt() ?? 0;
+    alertOn = j['alertOn'] as bool? ?? true;
+    alertMin = (j['alertMin'] as num?)?.toInt() ?? 8 * 60 + 20;
+    seenDate = j['seenDate'] as String?;
+    alertedDate = j['alertedDate'] as String?;
     scope = j['scope'] as String? ?? '';
     serverUrl = j['serverUrl'] as String? ?? '';
     account = j['account'] as String?;
@@ -123,6 +135,31 @@ class TeamState extends ChangeNotifier {
       fromJson(jsonDecode(await _ch.invokeMethod<String>('getTeam') ?? '{}') as Map<String, dynamic>);
     } catch (_) {}
     notifyListeners();
+  }
+
+  /// The Teams tab is on screen: the newest summary counts as seen, so no morning alert repeats it.
+  Future<void> markSeen() async {
+    final list = summaries;
+    if (!enabled || list.isEmpty) return;
+    final newest = list.first.date;
+    if (seenDate != null && seenDate!.compareTo(newest) >= 0) return;
+    seenDate = newest;
+    await save();
+  }
+
+  Future<void> setAlert({bool? on, int? minute}) async {
+    if (on != null) alertOn = on;
+    if (minute != null) alertMin = minute;
+    await save();
+  }
+
+  /// Shows the morning notification now, for the newest saved summary. False if there is none.
+  Future<bool> testAlert() async {
+    try {
+      return await _ch.invokeMethod<bool>('teamTestAlert') ?? false;
+    } catch (_) {
+      return false;
+    }
   }
 
   Future<void> setMode(String m) async {

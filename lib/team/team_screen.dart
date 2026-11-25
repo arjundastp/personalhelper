@@ -2,6 +2,7 @@ import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../format.dart' show fmtMinutesOfDay;
 import '../main.dart' show AppColors;
 import '../sprint/insights_view.dart' show SprintColors;
 import '../widgets.dart';
@@ -754,11 +755,12 @@ class TeamSettingsScreen extends StatelessWidget {
                 ),
               const GroupGap(),
               if (!t.viaEndpoint) OptionRow(icon: Icons.account_circle_outlined, title: 'Work account', value: t.account ?? 'Not signed in'),
-              OptionRow(
-                icon: Icons.badge_outlined,
-                title: 'Company IDs',
-                value: t.configured ? 'Tenant ${_mask(t.tenantId)} · App ${_mask(t.clientId)}' : 'Not set',
-              ),
+              if (!t.viaEndpoint)
+                OptionRow(
+                  icon: Icons.badge_outlined,
+                  title: 'Company IDs',
+                  value: t.configured ? 'Tenant ${_mask(t.tenantId)} · App ${_mask(t.clientId)}' : 'Not set',
+                ),
               OptionRow(
                 icon: Icons.cable_rounded,
                 title: 'Connection',
@@ -784,7 +786,8 @@ class TeamSettingsScreen extends StatelessWidget {
                   _ => 'Microsoft Graph · Chat.Read (read-only) · tap to change',
                 },
               ),
-              OptionRow(icon: Icons.memory_rounded, title: 'AI model', value: t.lastDiagnostics['model']?.toString() ?? 'Chosen on first pull'),
+              if (!t.viaEndpoint)
+                OptionRow(icon: Icons.memory_rounded, title: 'AI model', value: t.lastDiagnostics['model']?.toString() ?? 'Chosen on first pull'),
               OptionRow(
                 icon: Icons.copy_rounded,
                 title: 'Copy connection details',
@@ -796,6 +799,38 @@ class TeamSettingsScreen extends StatelessWidget {
                 title: 'Kept on phone',
                 value: '${t.summaries.length} summar${t.summaries.length == 1 ? 'y' : 'ies'} · older than ${TeamState.keepDays} days delete themselves',
               ),
+              if (t.viaEndpoint) ...[
+                OptionRow(
+                  icon: Icons.notifications_active_outlined,
+                  title: 'Morning alert',
+                  value: t.alertOn
+                      ? 'Every day at ${fmtMinutesOfDay(context, t.alertMin)}: a notification with what needs you, Pulse first · tap to change'
+                      : 'Off',
+                  onTap: () async {
+                    final picked = await showTimePicker(
+                      context: context,
+                      initialTime: TimeOfDay(hour: t.alertMin ~/ 60, minute: t.alertMin % 60),
+                    );
+                    if (picked != null) await t.setAlert(on: true, minute: picked.hour * 60 + picked.minute);
+                  },
+                  trailing: Switch(
+                    value: t.alertOn,
+                    onChanged: (v) => t.setAlert(on: v),
+                  ),
+                ),
+                if (t.alertOn)
+                  OptionRow(
+                    icon: Icons.send_to_mobile_outlined,
+                    title: 'Send a test alert',
+                    value: 'Shows the alert for the latest summary now',
+                    onTap: () async {
+                      final ok = await t.testAlert();
+                      if (context.mounted && !ok) {
+                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No summary yet. Tap Check now first.')));
+                      }
+                    },
+                  ),
+              ],
               if (t.viaEndpoint)
                 OptionRow(
                   icon: Icons.cloud_outlined,
@@ -816,12 +851,12 @@ class TeamSettingsScreen extends StatelessWidget {
               OptionRow(
                 icon: Icons.logout_rounded,
                 color: AppColors.red,
-                title: 'Sign out and remove',
-                value: 'Disconnects Teams and deletes the IDs and summaries',
+                title: t.viaEndpoint ? 'Disconnect and remove' : 'Sign out and remove',
+                value: t.viaEndpoint ? 'Forgets the endpoint and read key, and deletes the summaries' : 'Disconnects Teams and deletes the IDs and summaries',
                 onTap: () async {
                   if (await _confirm(
                     context,
-                    'Sign out and remove?',
+                    t.viaEndpoint ? 'Disconnect and remove?' : 'Sign out and remove?',
                     'Team summary is disconnected and everything about it is deleted from this phone.',
                     'Remove',
                   )) {

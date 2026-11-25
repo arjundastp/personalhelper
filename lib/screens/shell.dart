@@ -41,6 +41,7 @@ class _ShellState extends State<Shell> {
 
   void _select(String key) {
     setState(() => tab = key);
+    if (key == 'team') team.markSeen();
     if (app.setting('startTab', 'home') == 'last') app.updateSettings({'lastTab': key});
   }
 
@@ -66,12 +67,24 @@ class _ShellState extends State<Shell> {
     setState(() {
       if (!_tabs.contains(tab)) tab = _tabs.first;
     });
+    // A new summary arrived while the Teams tab is on screen: it has been seen.
+    if (tab == 'team' && WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => team.markSeen());
+    }
   }
 
   /// A Daily Sprint notification or the evening alert asked to open a screen.
   void _handleOpen() {
     final action = app.pendingOpen;
-    if (action == null || !mounted || !sprint.enabled) return;
+    if (action == null || !mounted) return;
+    if (action == 'team') {
+      if (!team.enabled) return;
+      app.pendingOpen = null;
+      Navigator.of(context).popUntil((r) => r.isFirst);
+      _select('team');
+      return;
+    }
+    if (!sprint.enabled) return;
     app.pendingOpen = null;
     final nav = Navigator.of(context);
     nav.popUntil((r) => r.isFirst);

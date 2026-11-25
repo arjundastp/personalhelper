@@ -4,7 +4,7 @@
 
 ## Download
 
-**[⬇ Download DayMate for Android](https://github.com/arjundastp/personalhelper/raw/main/downloads/DayMate.apk)** (version 1.14, about 20 MB, Android 8.0 or newer)
+**[⬇ Download DayMate for Android](https://github.com/arjundastp/personalhelper/raw/main/downloads/DayMate.apk)** (version 1.15, about 20 MB, Android 8.0 or newer)
 
 - Most phones: [`DayMate.apk`](https://github.com/arjundastp/personalhelper/raw/main/downloads/DayMate.apk)
 - Older or very low-cost phones (32-bit): [`DayMate-older-phones.apk`](https://github.com/arjundastp/personalhelper/raw/main/downloads/DayMate-older-phones.apk)
@@ -37,6 +37,9 @@ On first start, tap **Allow** so reminders can ring and show full screen.
     Microsoft 365 connector (read-only), writes the summary and sends it to your own small Cloudflare Worker;
     DayMate only reads it with a separate read key. Summaries there expire after 2 days. In this mode chats are
     processed in the cloud, not on the phone. Setup and the routine prompt: [`tools/cloudflare-worker/`](tools/cloudflare-worker/).
+    **Morning alert:** every day at 8:20 AM (changeable in Team settings) the phone checks your Worker; once the new
+    summary is there (it retries every 20 minutes until 11:30 AM) it shows a notification with what needs you,
+    Pulse first. No alert if you already opened that summary in the app.
   - **Microsoft Graph · Chat.Read:** sign in with your work account; needs your company's admin approval. Only
     read requests are made, and Chat.Read cannot write. Summarised on the phone (Gemini Nano via ML Kit GenAI when
     available, otherwise a simple digest).
